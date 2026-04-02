@@ -38,6 +38,18 @@ __MACOSX/
 # Large timeseries raw data (11k+ CSV files — too large for GitHub)
 Data/timeseries-data/
 
+# Paper / manuscript files (not part of code release)
+Final Journal/
+IST Journal/
+Journal Paper/
+Previous Paper/
+
+# Old / superseded code versions
+Previous Code/
+
+# Internal planning notes
+plan.md
+
 # Large data / output files (keep CSVs that are tracked results)
 *.zip
 *.7z
