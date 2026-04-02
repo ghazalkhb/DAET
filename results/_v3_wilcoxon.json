@@ -1,0 +1,41 @@
+{
+  "Transformer_vs_ARIMA": {
+    "n": 214,
+    "id_match": true,
+    "Precision": 0.1157594669654097,
+    "Recall": 3.957013779297131e-12,
+    "F1": 0.24447646770451592,
+    "False_Alarm_Rate": 2.082338892469497e-28
+  },
+  "Transformer_vs_LAST": {
+    "n": 214,
+    "id_match": true,
+    "Precision": 0.002795797682624192,
+    "Recall": 3.830616014615246e-05,
+    "F1": 0.004562131627915364,
+    "False_Alarm_Rate": 3.279824151627489e-27
+  },
+  "Transformer_vs_SMA": {
+    "n": 214,
+    "id_match": true,
+    "Precision": 0.1778773322803785,
+    "Recall": 9.403011991968491e-17,
+    "F1": 0.33434503587963715,
+    "False_Alarm_Rate": 6.776565155830935e-28
+  },
+  "Transformer_vs_EWMA": {
+    "n": 214,
+    "id_match": true,
+    "Precision": 0.026085842169241844,
+    "Recall": 1.2925367123568954e-09,
+    "F1": 0.048002545872137536,
+    "False_Alarm_Rate": 6.501887525361796e-30
+  },
+  "summary": {
+    "n_alerted_sigs": 150,
+    "n_detected": 72,
+    "detection_rate_pct": 48.0,
+    "total_runtime_s": 11024.399400000002,
+    "mean_peak_mem_kb": 633.0
+  }
+}

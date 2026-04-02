@@ -1,0 +1,1448 @@
+  Towards Efficient Performance Debugging: A
+   Dynamic and Adaptive Execution Tracing
+   Technique with Large-Scale Comparative
+                   Validation
+
+         Mohammed Adib Khan1† , Morteza Noferesti1*† ,
+                   Naser Ezzati-Jivan1†
+1*
+     Computer Science Department, Brock University, 1812 Sir Isaac
+         Brock Way, St. Catharines, L2S-3A1, ON, Canada.
+
+
+  *Corresponding author(s). E-mail(s): mnoferesti@brocku.ca;
+Contributing authors: khanm@brocku.ca; nezzatijivan@brocku.ca;
+        †
+          These authors contributed equally to this work.
+
+
+                                   Abstract
+Performance debugging in production systems is hampered by high tracing over-
+head and the challenge of determining when to collect data. This paper presents
+an extended evaluation of the dynamic adaptive execution tracing (DAET)
+framework first introduced in our conference paper [1]. The framework oper-
+ates in three phases: (1) Tracing-Function Selection via call-stack profiling and
+coefficient-of-variation (CoV) ranking, (2) Change Detection based on anomaly
+scoring with a dynamic threshold, and (3) Trace Configuration Adjustment that
+activates tracepoints only when the anomaly score exceeds a tolerance-based gate.
+This journal extension contributes five new components beyond the conference
+work: (i) a dual-dataset fair comparison of five change-detection engines—
+ARIMA(1,1,1), last-value (LAST), simple moving average (SMA), exponentially
+weighted moving average (EWMA), and a compact Transformer encoder—on two
+Mozilla performance-telemetry benchmarks: Firefox-Android (342 signatures)
+and mozilla-beta (1,477 signatures), using an identical 60%/20%/20% chrono-
+logical split with independent per-dataset held-out validation-set tuning; (ii) a
+statistical significance analysis using 2,000-resample bootstrap confidence inter-
+vals and Wilcoxon signed-rank tests on the main Firefox-Android evaluation;
+(iii) a trace-on replay experiment for the four statistical detectors (ARIMA,
+LAST, SMA, EWMA) quantifying storage reduction, alert coverage, and trigger
+frequency as supplementary deployment evidence; (iv) a three-way chronological
+
+
+                                        1
+     split (60%/20%/20%) validation with independent per-detector parameter tun-
+     ing; and (v) a fair multi-seed evaluation of a compact Transformer encoder (five
+     independent seeds) under the identical 60%/20%/20% protocol as all classical
+     detectors. On Firefox-Android (136 of 342 test-alerted signatures), SMA(w =
+     40) achieves the highest F1 = 0.104 and detection rate 72.8% among classi-
+     cal methods; EWMA(α = 0.05) is comparable (F1 = 0.103); ARIMA achieves
+     F1 = 0.089; LAST is weakest (F1 = 0.072). The compact Transformer (WIN-
+     DOW=20, dmodel = 16) achieves F1 = 0.105 (±0.002) and detection rate 74.4%,
+     competitive with the best classical methods and stable across five seeds. On
+     mozilla-beta (395 of 1,477 test-alerted signatures), SMA(w = 20) leads with
+     F1 = 0.085 and detection rate 91.7%; EWMA(α = 0.05) achieves F1 = 0.083;
+     ARIMA F1 = 0.076; LAST F1 = 0.069. The compact Transformer (WIN-
+     DOW=10, dmodel = 32) achieves F1 = 0.079 (±0.001). The qualitative ranking
+     SMA ≈ EWMA ≥ ARIMA > LAST is consistent across both datasets, con-
+     firming the generalisability of these findings. A statistical significance analysis on
+     the Firefox-Android main evaluation confirms ARIMA and SMA are statistically
+     indistinguishable in F1 (p = 0.547), and both significantly outperform LAST
+     and EWMA. All detectors reduce trace storage by 67–90%; the compact Trans-
+     former achieves 67–71% vs. 88–90% for classical methods. The ablation study
+     shows that the default parameters (β = 0.30, θ = 0.30, ARIMA order (1,1,1))
+     represent an operationally justified high-recall configuration; alternative settings
+     (e.g. β = 0.20, θ ≥ 0.40) yield materially higher F1 but lower recall.
+
+     Keywords: kernel tracing, application tracing, execution tracing, adaptive
+     performance monitoring, performance debugging, anomaly detection, ARIMA, change
+     detection, Mozilla telemetry
+
+
+
+
+1 Introduction
+Modern software systems rely on continuous performance monitoring to detect
+regressions before they impact end users. Execution tracing—recording timestamped
+function invocations, system calls, and hardware events—provides the most detailed
+diagnostic data for root-cause analysis [2–4]. However, always-on tracing imposes non-
+trivial runtime overhead: the LTTng kernel tracer requires as little as 158 ns per
+tracepoint materialization [5], yet at high event rates the cumulative I/O and storage
+cost quickly becomes prohibitive [6]. The fundamental dilemma is that tracing must
+be enabled before a regression manifests to capture causally relevant data, yet leaving
+it enabled at all times wastes resources and generates enormous volumes of irrelevant
+data.
+
+1.1 Conference Paper Foundation
+In our prior work [1] we introduced the Dynamic Adaptive Execution Tracing (DAET)
+framework, which addresses this dilemma by automating the decision of which func-
+tions to monitor and when to activate their tracepoints. The framework consists
+of three phases: a profiling phase that builds a ranked candidate list of functions
+
+
+                                               2
+via call-stack sampling and CoV-based prioritisation; a change-detection phase that
+feeds function-execution time-series data into a pluggable change-detection engine
+(ARIMA(1,1,1) in the original work) and maintains a decaying anomaly score; and
+a trace-configuration phase that toggles tracepoints when the anomaly score crosses
+a predefined threshold. Four Firefox/Bugzilla case studies demonstrated that the
+framework (a) correctly ranks known culprit functions in the top-5% monitored set,
+(b) triggers tracing only during anomalous intervals (44% storage reduction on a
+representative tracepoint), and (c) handles both application-level and kernel-level com-
+ponents through a multi-level mechanism. Those case studies were illustrative rather
+than prospective: a known bug report was used post hoc to confirm that the frame-
+work would have surfaced the culprit. Rigorous, prospective, large-scale evaluation
+was explicitly deferred as future work [1].
+
+1.2 Journal Extension: Motivation and Scope
+Three open questions motivate this journal extension.
+    Engine choice. ARIMA was selected as the change-detection engine in the
+conference paper because it predicts based on past trends and does not adapt to
+new anomalies, preserving sensitivity to genuine regime shifts. However, simpler
+alternatives—last observed value, simple moving average, EWMA—share similar prop-
+erties and are far cheaper to compute. It is unknown whether the added complexity
+of ARIMA provides measurably superior detection quality on real-world telemetry at
+scale.
+    Deployment trade-offs. Even when a detector correctly identifies a performance
+regression, the practical benefit depends on whether the trace recorder was actually
+active at that moment. No prior study has systematically quantified the storage reduc-
+tion versus alert-coverage trade-off that each detector implies under a unified replay
+protocol.
+    Parameter robustness. The anomaly score decay factor β , detection threshold
+θ, and tolerance window τ were chosen empirically in the conference paper. Formal
+ablation evidence characterising the stable operating region and the sensitivity of
+results to parameter variation across a large dataset was absent.
+
+1.3 Research Questions
+This journal paper addresses the following extension research questions (denoted RQ5–
+RQ8 to continue the numbering from [1]):
+RQ5 Among ARIMA, LAST, SMA, and EWMA, which statistical change detector
+achieves the best precision, recall, F1 score, and false-alarm rate when applied to 214
+Mozilla Firefox-Android regression-performance signatures? A compact Transformer
+encoder is additionally evaluated under a fair five-seed 60%/20%/20% chronological
+protocol across both datasets (Section 5.6).
+RQ6 Are the performance differences between detectors statistically significant at the
+α = 0.05 level?
+RQ7 How sensitive are the results to the key algorithmic parameters (β , θ, τ , ARIMA
+order, SMA window)?
+
+
+                                           3
+RQ8 When each detector’s binary output is used to gate trace recording, what storage-
+reduction versus alert-coverage trade-off does it produce under a replay simulation on
+the Mozilla dataset?
+
+1.4 Journal Contributions
+The primary contribution of this journal extension over [1] is an empirical com-
+parative extension : a large-scale validation of the DAET framework’s detection
+phase, a comparative detector study, a formal statistical analysis, and a replay-based
+storage/coverage analysis. The core DAET method—the three-phase framework archi-
+tecture, CoV-based function selection, and anomaly-score gating—was introduced
+in [1]; this paper does not claim methodological novelty in the detection mechanism.
+    Specifically, the extension contributes:
+1. A reproducible large-scale comparative validation of four classical change
+   detectors—ARIMA(1,1,1), LAST, SMA, EWMA—on 214 Mozilla Firefox-Android
+   Treeherder telemetry signatures (214 time-series × 4 methods = 856 evaluated
+   detector–signature pairs).
+2. A formal statistical analysis: 2,000-resample bootstrap 95% confidence intervals
+   for precision, recall, F1, and false-alarm rate; Wilcoxon signed-rank tests for all
+   six pairwise comparisons among the four statistical detectors—confirming that
+   ARIMA vs. SMA differences in F1 and precision are not statistically significant
+   (p > 0.05).
+3. An ablation study sweeping β ∈ {0.1, 0.2, 0.3, 0.5, 0.7}, θ ∈ {0.10, . . . , 0.50},
+   τ ∈ {1, 2, 3, 5, 7, 10}, five ARIMA orders, and six SMA windows—characterising
+   the stable operating regions of the parameter space and the operational tradeoffs
+   involved in parameter selection.
+4. A trace-on replay experiment on the full test-set chronology for the four statistical
+   detectors, measuring storage reduction (89–91%), trigger frequency (≈5.7–6.1%),
+   and alert coverage (70–93%), plus an efficiency-frontier analysis characterising the
+   storage–coverage Pareto trade-off.
+5. A three-way chronological split validation (60%/20%/20%) in which SMA w and
+   EWMA α are independently tuned on a held-out validation set and metrics are
+   reported on a clean held-out test set. This directly addresses the internal valid-
+   ity limitation of exploratory parameter selection—and reveals that properly tuned
+   EWMA(α = 0.05) achieves F1 comparable to SMA(w = 40) on Firefox-Android,
+   and likewise on mozilla-beta, partially revising the original cross-detector ranking.
+6. A fair multi-seed (five seeds) dual-dataset three-way evaluation of a compact Trans-
+   former encoder under the identical 60%/20%/20% chronological split protocol as all
+   classical methods, closing the fairness gap of the prior single-seed 70%/30% Trans-
+   former evaluation. The compact Transformer uses the same Algorithm-3 anomaly-
+   score gating as the classical detectors, with architecture and hyperparameters tuned
+   per dataset on the held-out validation set. On Firefox-Android (WINDOW=20,
+   dmodel = 16) the compact Transformer achieves F1 = 0.105 (±0.002) and detection
+   rate 74.4%; on mozilla-beta (WINDOW=10, dmodel = 32) F1 = 0.079 (±0.001).
+   The qualitative ranking SMA ≈ EWMA ≥ ARIMA > LAST is consistent across
+   both datasets.
+
+                                           4
+1.5 Paper Outline
+Section 2 reviews related work. Section 3 describes the DAET framework. Section 4
+summarises the four case studies from the conference paper. Section 5 presents the
+large-scale comparative evaluation (RQ5–RQ6). Section 6 reports ablation results
+(RQ7). Section 7 describes the replay experiment (RQ8). Section 8 discusses findings.
+Section 9 addresses threats to validity. Section 10 concludes. The three-way evalua-
+tion including the fair compact-Transformer multi-seed experiment is reported inline
+within the large-scale evaluation (Section 5.6).
+
+2 Related Works
+2.1 Software Analysis
+Previous work on software analysis includes static and dynamic analysis approaches.
+Static analysis tools such as Facebook Infer [7] and FindBugs [8] identify performance
+issues by detecting anti-patterns in source code, such as inefficient loops or wasteful call
+sequences. While they impose no runtime impact, they often generate false positives
+due to lack of runtime context [9–11].
+    Mace et al. [12] proposed pivot tracing, which instruments systems without kernel
+modifications using an SQL-like query language. However, it requires prior knowledge
+of the program’s source code. Mirgorodskiy et al. [13] introduced self-propelled instru-
+mentation, where an autonomous agent propagates through code via execution flow;
+this fails when all execution flows halt simultaneously [9].
+    Dynamic runtime analysis [6, 14] monitors program behaviour to pinpoint root
+causes. DTrace [2] dynamically modifies the OS kernel to place probes only when
+needed. LTTng [3] and Ftrace [4] provide low-overhead kernel-level tracing. While
+dynamic approaches can address issues in production environments, they introduce
+runtime overhead [6, 14].
+
+2.2 Clustering, Anomaly, and Trend Detection
+Analysing system-level metrics provides insights for predicting faults and detecting
+performance regressions. Nguyen et al. [15] used low-level metrics to detect abnormal
+change propagation paths. Zhang et al. [16] applied K-Means density clustering to
+detect anomalies in performance data. Tate et al. [17] employed a cohort intelligence
+model fed with kernel trace data.
+    Ehlers et al. [18] used ARIMA to detect trends in response times and adaptively
+monitor system performance—an approach that inspires our own anomaly-score func-
+tion. Their work focuses on application-level tracing only; our framework extends to
+multi-level (application and kernel) adaptive tracing.
+    Ates et al. [19] proposed Pythia, a real-time workflow-centric tracing framework
+that continuously gathers critical-path skeletons and groups them by performance
+expectation. Pythia is limited to application-level tracing and assumes no problematic
+groups in the first run, whereas DAET is fully online and does not require prior
+labelling.
+
+
+
+                                             5
+2.3 Time-Series Anomaly Detection in Software Systems
+Anomaly detection in time-series metrics from production systems has attracted con-
+siderable attention. Liu et al. [20] introduced Opprentice, a supervised offline learning
+approach for selecting operator-preferred anomaly detectors from a library of can-
+didates applied to performance metrics. Lavin and Ahmad [21] proposed NAB, a
+benchmark for evaluating real-time anomaly detectors on streaming data, providing
+a standardised scoring framework that accounts for detection latency. KDD datasets
+and the Yahoo EGADS system [22] demonstrate the breadth of statistical and ML-
+based approaches applied to large-scale time-series anomaly detection in production.
+Cid-Fuentes et al. [23] proposed adaptive SVM-based anomaly detection in distributed
+systems—the closest prior work to our setting, though their approach requires labelled
+training data that is unavailable in our Mozilla deployment scenario. DAET’s change-
+detection phase differs in being fully unsupervised and online, requiring no labelled
+anomalies, no manual threshold selection beyond the ablation-justified defaults, and
+no periodic retraining.
+
+2.4 Metrics Selection
+Selecting the right metrics is critical for informed adaptive tracing decisions.
+Laguna et al. [24] used PCA on abnormal/normal traces to reduce dimensionality; how-
+ever, their approach requires significant manual effort. Munawar et al. [25] evaluated
+random, correlation-based, hierarchical, and MST-based selection methods, finding
+MST-based pairwise correlation selection superior—inspiring our own correlation-
+based filtering. Dymshits et al. [26] observed that system call counts become stable
+unless perturbed by external factors, supporting our assumption of metric stability in
+healthy systems. Han et al. [27] proposed StackMine, which mines call-stack snapshots
+to estimate function execution times—an idea we adapt in Phase 1 of our framework.
+
+3 Adaptive Execution Tracing Framework
+This section describes the three-phase DAET framework. Figure 1 shows the overall
+architecture.
+
+3.1 Phase 1: Tracing-Function Selection
+3.1.1 Call-Stack Monitoring
+A suitable snapshot period is determined by the application’s characteristics (e.g., 10
+ms for a browser). The application is executed under representative workloads, and
+all observed function and system calls are recorded.
+
+3.1.2 Family-Group Identification and Sorting
+A family group captures the parent–child call hierarchy. For a snapshot SP =
+{Call-Stack i | 1 ≤ i ≤ n}, the family group of Call-Stack 1 = ⟨F a , F b , F c ⟩ is
+{(F a , F b ), (F b , F c )}. Groups are sorted by invocation frequency, prioritising functions
+with the highest potential performance impact. Algorithm 1 formalises this procedure.
+
+
+                                              6
+Fig. 1: Change detection phase overview: a pluggable change-detection engine
+(ARIMA(1,1,1) shown) drives the anomaly score, which gates the trace configuration.
+
+
+Algorithm 1 Family-Group Identification & Sorting
+ 1: F G List ← [ ]; F G Count ← [ ]
+ 2: for all Snapshot ∈ CallStackSnapshots do
+ 3:    for all F G ∈ ExtractFamilyGroups(Snapshot) do
+ 4:        if F G ∈
+                  / F G List then append F G to F G List; set count to 1
+ 5:        else increment F G Count[F G]
+ 6: Sort F G List descending by F G Count
+ 7: return F G List
+
+
+
+3.1.3 CoV Ranking
+Functions are further ranked by their Coefficient of Variation (CoV) of execution time
+CoVM = σM /µM , ensuring the most volatile functions are monitored (Algorithm 2).
+
+3.1.4 List Cutoff
+A cutoff (e.g., top-5% of all monitored functions) ensures that only the most
+performance-critical candidates are tracked, limiting monitoring overhead without
+sacrificing coverage of high-impact calls.
+
+
+
+
+                                          7
+Algorithm 2 CoV Ranking of Function Calls
+ 1: for all f ∈ F unctionExecT imeList do
+ 2:    µf ← mean execution time of f
+ 3:    σf ← standard deviation of f
+ 4:    CoVf ← σf /µf
+ 5: Sort F unctionExecT imeList descending by CoV
+ 6: return top-k % of list (e.g., k = 5)
+
+
+
+3.2 Phase 2: Change Detection
+3.2.1 ARIMA(1,1,1) Model
+For each monitored function, an ARIMA(1,1,1) model predicts the next execution-time
+sample based on historical data:
+
+                      x̂t+1 = xt + φ ∆xt + θ εt ,       εt = xt − x̂t .              (1)
+
+First-order differencing captures linear trends; the model flags deviations from the
+expected trend without adapting to them, preserving sensitivity to genuine regime
+shifts. A dynamic threshold adaptively scales with recent variability:
+                                                           
+                          Θt = max Θmin , kσ · std(δt−w:t ) ,                        (2)
+
+where δt = |xt − x̂t |, w = 30 (lookback window), and kσ = 3.0. A reading is flagged
+anomalous when δt > Θt .
+    Why ARIMA? ARIMA predicts based on past trends and—unlike machine-
+learning approaches—does not adapt to new changes, which preserves detection
+sensitivity. ARIMA identifies all trend changes regardless of cause (load shift, anomaly,
+attack), signalling that additional tracing data are needed. We select ARIMA(1,1,1)
+rather than higher-order variants so that gradual, organic workload growth is accom-
+modated (the integrated component re-centres predictions) while quadratic anomalies
+remain detectable.
+
+3.2.2 Anomaly Score
+The anomaly score is an exponentially weighted accumulator that rises when anomalies
+occur frequently and decays otherwise:
+
+                          st = β · 1[δt > Θt ] + (1 − β ) · st−1 ,                   (3)
+
+where β ∈ (0, 1) controls the reaction rate. Tracing is activated when st ≥ θ and
+deactivated when the score falls below θ. This gating prevents over-reaction to single
+spikes while ensuring persistent anomalies are always captured (see Figure 2).
+
+
+
+
+                                             8
+Fig. 2: Illustrative response-time series with five labelled events. A single spike (1) is
+insufficient to activate tracing; repeated anomalies (3) raise the score above threshold;
+the score must fall below threshold (5) before tracing is deactivated.
+
+
+Algorithm 3 Online Change Detection and Trace Gating
+ 1: Initialise st ← 0 for all monitored functions
+ 2: for all incoming sample xt per function do
+ 3:     x̂t ← ARIMA(xt−1 , xt−2 , . . .)
+ 4:     δt ← |xt − x̂t |
+ 5:     Θt ← max(Θmin , kσ · std(δt−w:t ))
+ 6:     st ← β · 1[δt > Θt ] + (1 − β ) · st−1
+ 7:     if st ≥ θ then
+ 8:         Enable tracepoint(s) for this function’s family-group
+ 9:     else
+10:         Disable tracepoint(s)
+
+
+3.3 Phase 3: Trace Configuration Change
+When the change-detection phase identifies a trend deviation, tracing is activated for
+the associated function family-groups up to a pre-set depth limit. At the system level,
+detected system-call anomalies are mapped to the corresponding kernel component via
+the Linux system-call table [28], enabling targeted kernel-level tracing. Algorithm 3
+combines all three decisions into a single online loop.
+
+4 Prior Qualitative Evaluation
+The conference paper [1] validated the framework through four case studies on Firefox
+and a controlled Apache server. These were illustrative demonstrations : in each case,
+a known Bugzilla performance-bug report was used post hoc to confirm that the
+
+
+                                            9
+ Case   Bug / Scenario                               Detected?        Candidate-list overhead       ARIMA storage reduction
+ 1      Apache CPU/disk/network trend changes      Yes (21 metrics)   66% (nmon metric selection)               —
+ 2      Firefox VSync driver slowdown (PDF load)    Yes (rank 14)          95% (CoV cutoff)                    44%
+ 3      Firefox 3D-rendering slowdown               Yes (rank 6)           95% (CoV cutoff)                     —
+ 4      Firefox startup slowdown (DNS failure)      Yes (rank 3)           95% (CoV cutoff)            Multi-level detection
+
+Table 1: Summary of four qualitative case studies from [1]. All overhead reductions
+are relative to always-on monitoring of the full candidate set.
+
+
+
+framework ranked the responsible function highly and triggered tracing at the correct
+time windows. Table 1 summarises the key results.
+   These case studies confirm that the framework correctly narrows a large candi-
+date space to a tractable monitored set, that the anomaly-score mechanism triggers
+and releases tracing at appropriate times, and that multi-level (application + kernel)
+detection is feasible. Rigorous prospective evaluation at scale is what motivates the
+remainder of this paper.
+
+5 Large-Scale Comparative Evaluation
+5.1 Dataset
+We use two publicly available Mozilla Treeherder performance-telemetry datasets [29].
+Treeherder is Mozilla’s continuous-integration platform; it records performance signa-
+tures for each test suite across every Firefox build and raises regression alerts when a
+Bayesian change-point detector flags a statistically significant performance change.
+    The raw Firefox-Android dataset contains 17,989 total alert records across 342
+unique telemetry signatures. For the main comparative evaluation (Sections 5.2–
+5.5), signatures were retained if they satisfy two inclusion criteria: (1) at least one
+regression-alert event is associated with the signature, and (2) the time-series contains
+at least 50 data points (sufficient for a meaningful 70%/30% train/test split with at
+least 15 test samples). After filtering, we obtain 214 matched signatures with a
+total of 7,612 regression-alert records.
+    For the three-way chronological split evaluation (Section 5.6), we relax the
+length threshold to 30 data points and extend the evaluation to a second repository.
+This yields 342 Firefox-Android and 1,477 mozilla-beta matched signatures under a
+60%/20%/20% train/val/test split. Table 2 summarises both dataset configurations.
+
+5.2 Competing Change Detectors
+We compare five change-detection engines, all embedded in the same DAET framework
+with identical anomaly-score gating (Eq. 3):
+    ARIMA(1,1,1) (parametric benchmark engine from [1]): uses Eq. 1 for predic-
+tion, with a dynamic threshold (Eq. 2). Requires training on the first 70% of each
+series; rolling ARIMA window of 60 samples with minimum history 20 samples. Mod-
+els are fitted using the statsmodels library (v0.13+, [30]) in Python with fixed order
+(p, d, q ) = (1, 1, 1) across all signatures. When fewer than 20 historical samples are
+available, the detector falls back to LAST until the minimum window is reached.
+
+
+                                                              10
+  Property                                Firefox-Android             mozilla-beta
+  Total alert records (raw)                                  17,989                  —
+  Matched signatures (used)                                     342               1,477
+  Mean time-series length                                     625.9               801.4
+  Train/val/test split                                     60% / 20% / 20%
+  Signatures w/ test-set alerts                                 136                 395
+Table 2: Mozilla Treeherder dataset characteristics for the three-way evaluation
+(Section 5.6). The main comparative evaluation uses Firefox-Android with 214 signa-
+tures (50-point length filter) and a 70%/30% train/test split.
+
+
+
+    LAST: the trivially simple “predict the last observed value” baseline, x̂t+1 = xt .
+No training required.
+    SMA(w=20): simple moving average over the last w = 20 samples. Smoothes
+random noise by averaging recent values.
+    EWMA(α = 0.30): exponentially weighted moving average, x̂t+1 = αxt + (1 −
+α)x̂t . Places exponentially decreasing weight on older observations. The smooth-
+ing parameter α = 0.30 was set by the same exploratory analysis that guided the
+ARIMA defaults; it was not independently tuned on a held-out validation set, which
+is acknowledged as a limitation in Section 9.
+    All four statistical methods share the same anomaly-score parameters (β = 0.30,
+θ = 0.30) and tolerance window (τ = 5 samples). For each method, the binary
+“anomaly” signal is determined by |δt | > Θt , where Θt uses the rolling-window
+dynamic threshold (Eq. 2).
+
+5.3 Evaluation Protocol
+For each of the 214 signatures and each of the 4 statistical detectors, we: (1) fit the
+model on the first 70% of the time series; (2) run the detector on the remaining 30%
+(test set) in a single pass; (3) align the binary detect/no-detect output with ground-
+truth alert timestamps using a tolerance window of τ = 5 samples either side (an
+alert within ±5 samples of a detection is counted as a true positive); (4) compute
+precision, recall, F1, false-alarm rate (FAR), and storage reduction. All metrics are
+macro-averaged : computed per signature and then aggregated to a mean across the
+214 signatures.
+    The detection delay for a matched alert at time ta is defined as d = s − ta , where
+s is the start time-step of the earliest detected interval that covers [ta − τ, ta + τ ]; a
+negative delay indicates pre-detection (the detector fires before the centre of the alert
+window). The false-alarm rate (FAR) is an interval-level rate:
+
+                                                 fp iv
+                                      FAR =            ,
+                                                 Ttest
+
+
+
+                                            11
+ Method          Precision         Recall            F1            FAR          Det. Rate (%)    Storage Red. (%)
+ ARIMA(1,1,1)    0.106 (0.17)    0.606 (0.45)    0.174 (0.23)    0.053 (0.01)       88.67             89.75
+ LAST            0.079 (0.15)    0.484 (0.45)    0.133 (0.19)   0.052 (0.01)        72.67             89.42
+ SMA(w=20)      0.112 (0.17)    0.657 (0.44)    0.186 (0.23)    0.052 (0.01)        96.00             88.83
+ EWMA(α=0.30)    0.090 (0.16)    0.562 (0.45)    0.151 (0.21)    0.056 (0.01)       82.67             91.00
+
+Table 3: Aggregate evaluation results across 214 Mozilla Firefox-Android signatures
+for the four statistical detectors. Bold marks the best value in each column: SMA leads
+on precision, F1, recall, detection rate, and FAR (tied with LAST); EWMA achieves
+the highest storage reduction. All methods use identical anomaly-score parameters.
+nalert = 150 signatures have ≥ 1 alert in the test set.
+
+
+
+ Method              Total Runtime (s)            Mean Peak Mem. (KB/sig)                   Relative Runtime
+ ARIMA(1,1,1)                   807                               1,423                             27×
+ SMA(w=20)                      30                                  90                          1× (baseline)
+ EWMA(α=0.30)                   24                                  84                              0.8×
+ LAST                            24                                 84                              0.8×
+
+Table 4: Computational cost over 214 Mozilla Firefox-Android signatures for the four
+statistical detectors. All experiments were conducted on a CPU-only Windows work-
+station (Intel Core i7, 16 GB RAM) running Python 3.12 with PyTorch 2.4.1+cpu; no
+GPU acceleration was used. Runtime is wall-clock time for the full 214-signature eval-
+uation pass. Peak memory is the mean per-signature OS-reported peak RSS. ARIMA
+incurs a 27× runtime overhead and 16× memory overhead relative to SMA, with no
+statistically significant accuracy gain (Table 6).
+
+
+
+where fp iv is the number of false-alarm activation intervals (maximal contiguous
+trace-ON periods whose ±τ neighbourhood contains no ground-truth alert), and Ttest
+is the total number of test-set samples. Because mean interval durations on this dataset
+are approximately one sample, FAR values are numerically close to a sample-level
+rate FPsamples /Ttest , but the denominator is sample count while the numerator counts
+intervals, not individual samples. When multiple detector activations fall within τ
+samples of the same alert, only one true-positive interval is counted; additional acti-
+vations within that window form separate false-alarm intervals. The detection rate is
+the fraction of the 150 signatures that have ≥ 1 alert in the test set and for which at
+least one alert is detected.
+
+5.4 RQ5: Predictor Comparison Results
+Table 3 reports the aggregate evaluation metrics. Standard deviations across 214
+signatures are given in parentheses.
+    Table 4 reports the total runtime and peak memory footprint for all five detectors
+over the 214-signature evaluation.
+    Key observations. (i) SMA achieves the highest recall (0.657), F1 (0.186), and
+detection rate (96.0%), making it the strongest statistical detector on this benchmark.
+
+
+                                                       12
+            (a) Precision, Recall, and F1 across the four statistical detectors.
+
+
+
+
+         (b) Detection Rate (%).                        (c) Storage Reduction (%).
+
+Fig. 3: Aggregate metric comparison across the four statistical detectors (214 Firefox-
+Android signatures, 70%/30% split). SMA leads on precision, F1, recall, and detection
+rate; EWMA achieves the highest storage reduction.
+
+
+(ii) EWMA achieves the highest storage reduction (91.0%) through a more conser-
+vative activation policy, but at the cost of lower detection rate (82.67%) and recall
+(0.562). (iii) ARIMA achieves detection rate 88.67% and F1 0.174, significantly ahead
+of LAST and EWMA; however, it costs 27× more runtime and 16× more memory
+than SMA (Table 4) with no statistically significant accuracy gain over SMA in F1 or
+precision. (iv) Precision is low (< 0.12) across all four methods because the Mozilla
+dataset contains many short, isolated spikes that do not correspond to labelled regres-
+sion alerts—a characteristic of telemetry with high natural noise. (v) Detection delay:
+SMA fires pre-emptively with mean delay −3.2 samples; ARIMA shows delay −2.8
+samples.
+    Figure 3 summarises the aggregate metrics visually. Figure 4 shows representative
+detection outputs for one Mozilla signature under all four statistical detectors.
+
+
+
+
+                                            13
+            (a) ARIMA(1,1,1)                               (b) LAST
+
+
+
+
+             (c) SMA(w=20)                            (d) EWMA(α=0.30)
+
+Fig. 4: Detection output for Mozilla Firefox-Android signature 4669835 under the four
+statistical detectors. Shaded regions indicate intervals where the detector activated
+tracing (st ≥ θ). Vertical dashed lines mark ground-truth regression alerts.
+
+
+
+ Method       Precision CI         Recall CI          F1 CI             FAR CI
+ ARIMA         [0.093, 0.119]    [0.543, 0.668]    [0.154, 0.195]     [0.050, 0.055]
+ LAST          [0.067, 0.092]    [0.423, 0.550]    [0.114, 0.153]     [0.050, 0.055]
+ SMA           [0.100, 0.125]    [0.596, 0.719]    [0.166, 0.206]     [0.049, 0.054]
+ EWMA          [0.078, 0.103]    [0.498, 0.625]    [0.131, 0.171]     [0.053, 0.058]
+          Table 5: Bootstrap 95% confidence intervals (2,000 resamples).
+
+
+
+5.5 RQ6: Statistical Significance Analysis
+5.5.1 Bootstrap Confidence Intervals
+Table 5 reports 95% bootstrap confidence intervals derived from 2,000 resamples with
+replacement of the 214 per-signature scores.
+   The non-overlapping CIs for ARIMA vs. LAST (F1: [0.154, 0.195] vs. [0.114, 0.153])
+indicate a practically meaningful difference, confirmed by the Wilcoxon test below.
+The CIs for ARIMA and SMA overlap substantially in F1 and precision.
+
+
+
+                                         14
+ Pair                              Precision        Recall         F1          FAR
+ ARIMA vs. LAST              p      < 0.001        < 0.001      < 0.001      0.765∗
+ ARIMA vs. SMA               p      0.652∗          0.001       0.547∗       0.380∗
+ ARIMA vs. EWMA              p      < 0.001         0.002       < 0.001      < 0.001
+ LAST vs. SMA                p      < 0.001        < 0.001      < 0.001      0.225∗
+ LAST vs. EWMA               p       0.011         < 0.001       0.006        0.013
+ SMA vs. EWMA                p      < 0.001        < 0.001      < 0.001      < 0.001
+ ∗
+     Not statistically significant at α = 0.05.
+Table 6: Wilcoxon signed-rank test p-values (n = 214) for all six pairwise comparisons
+among the four statistical detectors. Cells with ∗ are not statistically significant (p ≥
+0.05).
+
+
+
+5.5.2 Wilcoxon Signed-Rank Tests
+Table 6 reports Wilcoxon signed-rank test p-values for all ten pairwise comparisons
+(α = 0.05). The upper block covers the six pairs among the four statistical detectors.
+     Key findings. (i) ARIMA significantly outperforms LAST on precision, recall,
+and F1 (all p < 0.001). (ii) ARIMA and SMA do not differ significantly in precision
+(p = 0.652) or F1 (p = 0.547); they differ only in recall (p = 0.001, SMA higher).
+(iii) ARIMA significantly outperforms EWMA in precision, recall, F1, and FAR (all
+p ≤ 0.002). (iv) FAR differences between ARIMA and LAST are not significant (p =
+0.765); LAST vs. SMA FAR differences are also not significant (p = 0.225); suggesting
+that ARIMA, LAST, and SMA produce similar false-alarm rates at this sensitivity
+setting.
+     These results answer RQ5 (Among the four statistical methods, SMA achieves the
+highest recall (0.657), F1 (0.186), and detection rate (96.0%), making it the strongest
+statistical baseline. ARIMA is second and statistically indistinguishable from SMA in
+F1 (p = 0.547) and precision (p = 0.652); LAST is weakest.) and RQ6 (ARIMA’s
+advantage over LAST and EWMA is statistically significant in precision, recall, and
+F1; the ARIMA-vs-SMA difference in F1 and precision is not statistically signifi-
+cant (p > 0.50). All p < 0.001 cells remain significant under a Bonferroni-corrected
+threshold of α/6 = 0.008 for the six pairwise comparisons.).
+
+5.6 Three-Way Validation: Dual-Dataset Fair Comparison
+The two-way (70%/30%) evaluation above selected SMA w = 20 and EWMA α = 0.30
+from exploratory analysis on the full dataset rather than from a held-out validation set,
+a recognised internal validity limitation (Section 9). To address this—and to include
+a compact Transformer on equal terms—we conducted a three-way chronological split
+experiment covering all five method families on two Mozilla performance-telemetry
+repositories (Section 5.1): Firefox-Android (342 signatures) and mozilla-beta (1,477
+signatures).
+
+
+
+                                           15
+ Train (60%): ARIMA parameters are estimated here; all methods calibrate their
+  dynamic-threshold δ -history on this portion.
+ Validation (20%): SMA w, EWMA α, and Transformer hyperparameters (win-
+  dow, dmodel ) are selected by maximising mean F1 on this held-out portion
+  independently per dataset. ARIMA order (1, 1, 1) is kept fixed from the original
+  ablation (Section 6). Shared parameters (β = 0.30, θ = 0.30) are common to all
+  methods and are not tuned on this validation set.
+ Test (20%): Final metrics are computed on this portion exclusively—it was never
+  consulted during any tuning decision.
+    Compact Transformer for fair comparison. To include a Transformer in the
+three-way comparison on equal terms, we adopt a compact architecture (hereafter
+Transformer (compact) ): a single Transformer encoder layer with model dimension
+dmodel , two attention heads, feed-forward dimension 2dmodel , and a sliding input win-
+dow of w samples. Training uses the Adam optimiser (η = 0.01) with MSE loss,
+early stopping (patience 6 on training loss), and a maximum of 20 epochs—the same
+Algorithm-3 anomaly-score gating is applied as for all classical detectors (β = 0.30,
+θ = 0.30, τ = 5). This design removes the three adaptive mechanisms (ADT, Anoma-
+lyHead, GRAC), ensuring the only difference from classical methods is the forecasting
+backbone. The HP grid sweeps w ∈ {10, 20, 30} and dmodel ∈ {8, 16, 32} (nine combi-
+nations), tuned with a single seed for efficiency. The test run uses five independent
+random seeds {42, 123, 456, 789, 1024} and reports mean ± standard deviation.
+    Validation-set tuning. Figure 5 shows the validation F1 curves over the SMA
+and EWMA grids on both datasets; Figure 6 shows the Transformer HP grid. Firefox-
+Android: SMA peaks at w = 40 (val F1 = 0.102); EWMA peaks at α = 0.05
+(val F1 = 0.098); Transformer best at WINDOW=20, dmodel = 16 (val F1 = 0.080).
+Mozilla-beta: SMA peaks at w = 20 (val F1 = 0.144); EWMA peaks at α = 0.05
+(val F1 = 0.145); Transformer best at WINDOW=10, dmodel = 32 (val F1 = 0.130).
+Both SMA and EWMA curves are unimodal on both datasets, and the selected val-
+ues do not sit at the grid boundary, confirming stability of tuning. The optimal
+Transformer HPs differ across datasets, confirming that dataset-specific tuning is
+beneficial.
+    Test-set results. Tables 7 and 8 report the final test-set metrics for all five method
+families. The 20% test window contains 136 of 342 (39.8%) Firefox-Android signatures
+and 395 of 1,477 (26.7%) mozilla-beta signatures with ≥ 1 alert.
+    Six findings emerge from Tables 7–8:
+1. Qualitative ranking is consistent across both datasets. SMA and EWMA
+   lead on most accuracy dimensions; ARIMA is third; LAST is weakest among the
+   statistical methods on both Firefox-Android and mozilla-beta. The directional con-
+   clusions of the main evaluation are robust to proper hold-out parameter selection
+   and generalise to a second dataset.
+2. EWMA, properly tuned (α = 0.05), matches SMA in F1. Under inde-
+   pendent per-dataset tuning, EWMA achieves F1 = 0.103 (Firefox-Android) and
+   F1 = 0.083 (mozilla-beta)—within 0.001–0.002 of the corresponding SMA F1 on
+   both datasets. Both datasets converge on α = 0.05 as the best EWMA parameter,
+
+
+
+                                           16
+(a) Firefox-Android SMA: peaks at w = 40.        (b) mozilla-beta SMA: peaks at w = 20.
+
+
+
+
+(c) Firefox-Android EWMA: peaks at α = (d) mozilla-beta EWMA: peaks at α = 0.05.
+0.05.
+
+Fig. 5: Validation-set parameter tuning curves for SMA (top row) and EWMA (bot-
+tom row) on Firefox-Android (left) and mozilla-beta (right). Red dashed lines mark
+the selected parameter value. Unimodal curves on both datasets confirm that selected
+values are not artefacts of the grid boundary.
+
+
+
+
+(a) Firefox-Android: best WINDOW=20, (b) mozilla-beta:             best   WINDOW=10,
+dmodel = 16.                         dmodel = 32.
+
+Fig. 6: Compact Transformer HP validation F1 over the {10, 20, 30} × {8, 16, 32}
+window × dmodel grid (single-seed tuning run). Different optimal HPs per dataset
+indicate the benefit of per-dataset tuning.
+
+
+
+                                            17
+ Method                    Precision       Recall           F1            FAR         Det. Rate (%)   Storage Red. (%)
+ ARIMA(1,1,1)                 0.056          0.257          0.089          0.056          66.18            90.27
+ LAST                         0.046          0.209          0.072          0.055          54.41            89.21
+ SMA(w = 40)†                 0.066          0.290          0.104          0.055          72.79            88.32
+ EWMA(α=0.05)†                0.068          0.263          0.103          0.052          67.65            89.38
+ Transformer (compact)‡   0.069 ±0.002   0.292 ±0.002   0.105 ±0.002   0.066 ±0.001       74.41            67.24
+
+Table 7: Three-way split (60%/20%/20%) test-set results on Firefox-Android (342
+signatures; 136 with ≥ 1 alert in the test set). † parameter tuned on the held-out
+validation set. ‡ Transformer (compact): dmodel = 16, WINDOW=20, one encoder
+layer, MSE+Adam (no ADT/AnomalyHead/GRAC); five seeds, mean ± std. Bold
+marks the best value per column among classical statistical methods (Transformer
+excluded from bold).
+
+
+
+ Method                    Precision       Recall           F1            FAR         Det. Rate (%)   Storage Red. (%)
+ ARIMA(1,1,1)                 0.050          0.232          0.076          0.060          88.61            90.31
+ LAST                         0.045          0.212          0.069          0.053          81.77            89.03
+ SMA(w = 20)†                 0.057          0.241          0.085          0.059          91.65            88.84
+ EWMA(α=0.05)†                0.057          0.236          0.083          0.059          90.63            88.47
+ Transformer (compact)‡   0.054 ±0.001   0.235 ±0.002   0.079 ±0.001   0.064 ±0.000       89.82            71.09
+
+Table 8: Three-way split (60%/20%/20%) test-set results on mozilla-beta (1,477
+signatures; 395 with ≥ 1 alert in the test set). † parameter tuned on the held-out
+validation set. ‡ Transformer (compact): dmodel = 32, WINDOW=10, one encoder
+layer, MSE+Adam (no ADT/AnomalyHead/GRAC); five seeds, mean ± std. Bold
+marks the best value per column among classical statistical methods (Transformer
+excluded from bold).
+
+
+
+   confirming this is a robust cross-dataset optimum rather than a dataset-specific one.
+   EWMA achieves higher storage reduction than SMA on Firefox-Android (89.4%
+   vs. 88.3%); on mozilla-beta the margin reverses slightly (EWMA 88.5% vs. SMA
+   88.8%), so the storage advantage is Firefox-Android-specific rather than a consis-
+   tent cross-dataset finding. On Firefox-Android, EWMA is attractive when storage
+   efficiency is a priority alongside competitive detection quality.
+3. ARIMA outperforms LAST on both datasets. Firefox-Android: detection
+   rate 66.2% vs. 54.4%; F1 0.089 vs. 0.072. Mozilla-beta: detection rate 88.6%
+   vs. 81.8%; F1 0.076 vs. 0.069. The ARIMA advantage established in the main
+   evaluation carries through to both the 60/20/20 split and the second dataset.
+4. Compact Transformer is competitive with top classical methods
+   on Firefox-Android. On Firefox-Android, the compact Transformer achieves
+   F1 = 0.105 (±0.002), marginally above SMA F1 = 0.104, with detection rate 74.4%
+   exceeding SMA (72.8%). Standard deviation across five seeds is ≤0.002 for all
+   metrics, confirming that training variability is not a confound.
+5. Compact Transformer falls slightly below classical methods on mozilla-
+   beta. On the larger mozilla-beta dataset, the compact Transformer achieves
+   F1 = 0.079 (±0.001), below SMA F1 = 0.085 (−0.006) and EWMA F1 = 0.083
+
+
+
+                                                           18
+Fig. 7: Test-set metrics for all five methods on both datasets under the 60%/20%/20%
+three-way split. The qualitative ranking SMA ≈ EWMA ≥ ARIMA > LAST is con-
+sistent across datasets.
+
+
+   (−0.004). Seed stability remains high (std ≤0.001), indicating the result is
+   consistent across training runs.
+6. Storage reduction differs by predictor type. Classical methods achieve 88–
+   90% storage reduction on both datasets. The compact Transformer achieves 67.2%
+   (Firefox-Android) and 71.1% (mozilla-beta)—lower because the learned predictor
+   activates trace-on windows more frequently at the same anomaly-score threshold.
+   Practitioners prioritising storage savings should consider threshold adjustment for
+   Transformer-based deployment.
+   Figure 7 shows the test-set metrics for all five methods across both datasets.
+
+6 Ablation Study
+To address RQ7 we sweep the five most influential parameters and report effects on
+mean precision, recall, F1, and FAR. All ablations use ARIMA(1,1,1) as the primary
+method, with SMA included for the τ sweep. The four statistical detectors therefore
+provide the primary ablation signal.
+
+6.1 Decay Factor β
+Table 9 shows results for β ∈ {0.1, 0.2, 0.3, 0.5, 0.7}.
+   Smaller β values (0.1, 0.2) produce markedly higher precision and F1 for ARIMA
+(F1 = 0.266 at β = 0.20, vs. 0.144 at the default β = 0.30), because the score
+accumulates more selectively. However, ARIMA recall drops substantially (0.479 at
+
+
+                                         19
+                         β     Precision   Recall    F1     FAR
+                        0.10    0.173      0.210    0.183   0.003
+                        0.20    0.204      0.479    0.266   0.018
+                        0.30    0.086      0.544    0.144   0.054
+                        0.50    0.086      0.540    0.144   0.055
+                        0.70    0.082      0.502    0.137   0.057
+
+                       Table 9: Effect of β on ARIMA(1,1,1)
+                       detection performance. Bold marks the
+                       chosen default (β = 0.30).
+
+
+
+                          θ    Precision   Recall    F1     FAR
+                        0.10    0.097      0.591    0.162   0.042
+                        0.15    0.097      0.591    0.162   0.047
+                        0.20    0.095      0.591    0.160   0.049
+                        0.25    0.091      0.591    0.154   0.053
+                        0.30    0.086      0.544    0.144   0.054
+                        0.40    0.214      0.465    0.272   0.017
+                        0.50    0.227      0.402    0.270   0.011
+
+                       Table 10: Effect of anomaly-score
+                       threshold θ on ARIMA(1,1,1) perfor-
+                       mance. Bold marks the default (θ =
+                       0.30).
+
+
+
+β = 0.20 vs. 0.544 at β = 0.30) because the score rises too slowly to cross the threshold
+before the alert window closes. Large β values (≥ 0.50) increase FAR because isolated
+spikes more readily push the score above threshold; ARIMA F1 stabilises at ≈0.14 for
+β ≥ 0.50 while recall continues to decline (0.540 at β = 0.50 to 0.502 at β = 0.70). The
+default β = 0.30 was retained as an operational tradeoff: it achieves high recall and
+responds more reliably to sustained anomalies in deployment scenarios where missing
+a regression is costlier than a false alarm. Practitioners optimising for F1 rather than
+recall should note that β = 0.20 (ARIMA: F1 = 0.266) yields demonstrably better F1
+on this benchmark.
+
+6.2 Anomaly-Score Threshold θ
+Table 10 sweeps θ ∈ {0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50}.
+    For ARIMA, F1 is marginally higher at θ ∈ [0.10, 0.25] (up to 0.162 vs. 0.144 at the
+default). Above θ = 0.30 the behaviour bifurcates: ARIMA sees a large precision jump
+and recall drop, with F1 rising substantially: F1 = 0.272 at θ = 0.40 (precision 0.214,
+recall 0.465) and F1 = 0.270 at θ = 0.50 (precision 0.227, recall 0.402). These high-θ
+operating points trade recall for precision and F1; the higher F1 arises because only the
+strongest, most sustained anomaly episodes cross the threshold, dramatically reducing
+false-alarm intervals. The default θ = 0.30 was chosen as a high-recall operating point;
+
+
+                                           20
+                   τ      Method      Precision      Recall        F1      FAR
+                          ARIMA         0.049        0.423     0.087       0.056
+                    1
+                          SMA           0.057        0.470     0.100       0.055
+                          ARIMA         0.064        0.474     0.110       0.055
+                    3
+                          SMA           0.071        0.535     0.123       0.054
+                          ARIMA         0.086        0.544     0.145       0.054
+                   5
+                          SMA           0.092        0.591     0.155       0.053
+                          ARIMA         0.103        0.591     0.171       0.053
+                    7
+                          SMA           0.099        0.591     0.166       0.053
+                          ARIMA         0.115        0.591     0.187       0.052
+                   10
+                          SMA           0.109        0.591     0.179       0.052
+
+                  Table 11: Effect of tolerance τ (samples) on
+                  ARIMA and SMA. Bold marks the default (τ =
+                  5).
+
+
+
+                         Order     Precision    Recall        F1        FAR
+                         (1,0,0)    0.057       0.450     0.100         0.065
+                         (0,1,1)    0.087       0.550     0.147         0.055
+                         (1,1,0)    0.057       0.450     0.099         0.058
+                         (1,1,1)    0.094       0.550     0.158         0.054
+                         (2,1,2)    0.091       0.550     0.153         0.054
+
+                        Table 12: ARIMA order ablation (20-
+                        signature subset). Bold marks the chosen
+                        default.
+
+
+
+practitioners targeting precision-oriented F1 over recall should consider θ = 0.40–0.50
+for ARIMA.
+
+6.3 Tolerance Window τ
+Table 11 shows results for τ ∈ {1, 2, 3, 5, 7, 10}.
+    Metrics improve monotonically with τ for both methods because more alert–
+detection matchings are permitted; all methods plateau around τ = 7, suggesting
+that a 5-sample neighbourhood captures most valid detections without inflating scores
+artificially.
+
+6.4 ARIMA Order
+Table 12 compares five ARIMA configurations on a representative 20-signature subset.
+   ARIMA(1,1,1) achieves the best F1 on this subset. Adding MA terms to the pure
+AR(1) model (comparing (1,1,0) to (1,1,1)) improves both precision and F1 without
+materially increasing FAR. The more complex (2,1,2) model provides no statistically
+meaningful gain. Note that these results derive from a 20-signature subset; they are
+
+
+
+                                                21
+                         w   Precision   Recall    F1     FAR
+                         5     0.071     0.507    0.121   0.057
+                        10     0.081     0.572    0.140   0.055
+                        15     0.089     0.591    0.151   0.054
+                        20     0.092     0.591    0.155   0.053
+                        30     0.096     0.610    0.161   0.053
+                        50     0.089     0.594    0.151   0.053
+
+                       Table 13: SMA window ablation. Bold
+                       marks the default (w = 20).
+
+
+
+used only to justify the order selection and should not be over-interpreted as evidence
+of general superiority across the full 214-signature benchmark.
+
+6.5 SMA Window
+Table 13 sweeps SMA window w ∈ {5, 10, 15, 20, 30, 50}.
+    Performance improves from w = 5 to w = 30 and plateaus; the default w = 20 sits
+in the stable region.
+    RQ7 summary: The default parameter configuration (β = 0.30, θ = 0.30, τ = 5,
+ARIMA(1,1,1), SMA w = 20) is an operationally justified high-recall operating point,
+not a globally optimal one across all metrics. The sweeps show materially better F1
+is achievable: β = 0.20 yields ARIMA F1 = 0.266 vs. the default 0.144; θ = 0.40–
+0.50 yields F1 = 0.270–0.272 at the cost of substantially lower recall (0.402–0.465 vs.
+0.544 at the default). SMA w = 30 marginally outperforms w = 20. The defaults
+trade F1 and precision for recall, and were chosen because missing a regression is
+typically costlier than a false alarm in CI/CD continuous monitoring. Practitioners
+optimising for F1 (rather than recall) should consider β = 0.20 or θ = 0.40 for ARIMA,
+and the ARIMA-order result should be treated with caution as it derives from a 20-
+signature subset. The principal comparative conclusions of RQ5–RQ6 hold across the
+full parameter range tested.
+
+7 Trace-On Replay Experiment
+7.1 Experimental Setup
+Scope and status. The replay experiment is supplementary deployment evidence for
+the four statistical detectors on the Firefox-Android 70%/30% test split. It is not a
+direct extension of the main comparative conclusions: the effective alerted-signature
+count here is 136 (of 214 evaluated signatures with ≥ 1 alert in the replay test set),
+compared with 150 alerted signatures in the main 70%/30% evaluation—a discrepancy
+arising from how the replay pipeline accounts for alert presence in the test win-
+dow. Alert-coverage figures should therefore be interpreted as indicative deployment
+estimates rather than as tight continuations of the main ranking.
+    The replay experiment asks: if a detector’s binary decision at each time step were
+used to gate the trace recorder—active only when st ≥ θ—what fraction of storage
+
+
+                                          22
+ Method    Stor. Red. (%)   Trigger Freq. (%)    Alert Coverage (%)   Burst Ratio   Activations
+ ARIMA       89.75 (7.31)       5.82 (1.78)           85.66 (34.91)      0.515         10.28
+ LAST        89.42 (3.03)       5.65 (1.49)           70.22 (45.70)      0.633         9.96
+ SMA         88.83 (6.03)       5.76 (1.83)          93.01 (25.22)       0.574         10.18
+ EWMA       91.00 (2.71)        6.07 (1.74)           79.04 (40.62)      0.453         10.72
+
+Table 14: Trace-on replay aggregate metrics across 214 signatures for the four sta-
+tistical detectors. 136 of 214 signatures have ≥ 1 alert in the test set. Best storage
+reduction in bold; best coverage in bold.
+
+
+
+would be saved, and what fraction of regression-alert signatures would be “covered”
+(i.e., the recorder was active around at least one alert)?
+    For each of the 214 signatures and each detector, we replay the chronological test-
+set sequence. At each step, if the detector output is 1 (anomalous), the sample is
+counted as “recorded”; otherwise it is suppressed. Three metrics are computed per
+signature:
+ Storage Reduction: 1 − (ON samples)/(total test samples). This is estimated
+  by sample count only—it approximates the fraction of trace time that would be
+  suppressed, but does not account for variable trace event size, I/O batching, or
+  compression. Actual byte savings in deployment will depend on the storage backend.
+ Trigger Frequency: rate of 0 → 1 transitions per test sample (measures how often
+  the detector activates, i.e., burst frequency).
+ Alert Coverage: for each alerted signature (one with ≥ 1 alert in the test period),
+  the fraction of its ground-truth test-set alerts that were covered by at least one trace-
+  ON interval within ±τ samples. This is alert-level recall per signature: alert covi =
+  tp alertsi /nalerts,i . The reported value is the mean of this per-signature recall across
+  all alerted signatures.
+
+7.2 Results
+Table 14 reports aggregate replay metrics.
+    Storage reduction. All four statistical detectors reduce trace volume by ≈ 89–
+91%—consistent with the main evaluation’s storage reduction (Table 3). EWMA
+achieves marginally higher reduction (91.0%) because its exponential weighting reacts
+more slowly to isolated spikes, resulting in less time in the ON state. LAST has
+low standard deviation (3.0%) indicating highly consistent storage savings across
+signatures.
+    Alert coverage (mean per-signature alert recall). SMA achieves the highest
+mean alert recall (93.0%), meaning that across alerted signatures SMA’s trace-ON
+windows cover on average 93.0% of ground-truth alerts in the test period. ARIMA
+follows at 85.7%. EWMA’s conservative activation leads to the lowest mean alert recall
+among structured methods (79.0%); LAST is worst (70.2%) despite similar trigger
+frequency. The gap between SMA (93.0%) and EWMA (79.0%) directly reflects the
+detection-rate difference seen in Table 3.
+
+
+
+                                                23
+Fig. 8: Boxplot distributions of storage reduction, trigger frequency, and alert coverage
+across 214 signatures for the four statistical detectors.
+
+
+    Trigger frequency and burst ratio. The four statistical methods activate
+5.7–6.1% of total test samples. The burst ratio (mean interval duration relative to
+activation count) is lowest for EWMA (0.453), ARIMA and SMA display intermedi-
+ate behaviour (0.515–0.574), and LAST shows the longest average activation intervals
+(0.633).
+    Figure 8 shows boxplot distributions of storage reduction, trigger frequency, and
+alert coverage across all signatures.
+
+7.3 Efficiency Frontier Analysis
+Figure 9 plots storage reduction against alert coverage for each of the four statistical
+detectors, revealing the storage–coverage Pareto frontier.
+    SMA dominates for coverage; EWMA dominates for storage reduction. ARIMA
+represents a balanced choice: second-highest coverage (85.7%) with storage reduction
+comparable to SMA (89.75% vs. 88.83%). LAST is dominated—it achieves neither the
+highest storage reduction nor the highest coverage.
+    The CDF of per-signature storage reduction is shown in Figure 10: all four
+statistical methods show tight distributions of storage reduction (85–95%).
+    RQ8 summary: All four statistical detectors achieve a storage reduction of ≈ 89–
+91%. The critical differentiator is alert coverage : SMA achieves the highest mean
+per-signature alert recall (93.0%)—it covers on average 93.0% of a signature’s test-
+set alerts—while LAST achieves only 70.2%. SMA dominates the coverage dimension
+(93.0% mean alert recall at 88.83% storage reduction) and is the recommended choice
+for deployments where alert coverage is the primary objective. ARIMA provides the
+second-highest coverage (85.7%) at comparable storage reduction (89.75%), and may
+be preferred when an interpretable forecasting model is required; but it should not
+be selected over SMA on the basis of performance data from this benchmark. LAST
+is Pareto-dominated, achieving neither the highest storage reduction nor the highest
+coverage.
+
+
+
+
+                                           24
+Fig. 9: Efficiency frontier: storage reduction vs. alert coverage. A Pareto-optimal
+detector lies at the top-right corner. SMA achieves the best combined storage–coverage
+trade-off; EWMA maximises storage reduction at the cost of lower alert coverage.
+
+
+8 Discussion
+8.1 Operational Engine Selection
+The experimental results support the following guidance for practitioners deploying
+the DAET framework. Among the four statistical methods evaluated under the rig-
+orous 60%/20%/20% protocol, SMA leads on recall, detection rate, and replay alert
+coverage; EWMA matches SMA in F1 when properly tuned; ARIMA is third; LAST
+is weakest. Three deployment profiles emerge depending on accuracy objectives and
+resource constraints.
+    Recommended default (most deployments): use SMA(w=20). It achieves
+detection rate 96%, mean recall 0.657, F1 0.186, and mean per-signature alert recall
+93.0% in the replay experiment. It requires no model fitting, is deterministic, runs in
+30 seconds on all 214 signatures, and uses 16× less peak memory than ARIMA.
+    If explicit trend modelling or extensibility is required: use ARIMA(1,1,1).
+It significantly outperforms LAST and EWMA, matches SMA in F1 and precision, and
+provides a statistically motivated prediction model that distinguishes gradual work-
+load evolution from sudden performance regressions. ARIMA(1,1,1) can be extended
+
+
+
+                                          25
+Fig. 10: Cumulative distribution of per-signature storage reduction. All methods con-
+centrate at 85–95%.
+
+
+to ARIMA(p,d,q) by adaptive order selection (AIC/BIC), allowing tuning to the auto-
+correlation structure of specific signatures. Teams should be aware of the 27× runtime
+cost relative to SMA (Table 4) when making this choice.
+    If storage reduction is the primary constraint: use EWMA on Firefox-
+Android. With tuned α = 0.05 (Section 5.6), EWMA achieves higher storage reduction
+than SMA on Firefox-Android (89.4% vs. 88.3%), while matching SMA in F1 (0.103
+vs. 0.104) and maintaining comparable detection quality. On mozilla-beta, the margin
+reverses: SMA achieves 88.8% storage reduction vs. EWMA’s 88.5%, so the storage
+advantage is dataset-dependent and shouldn’t be taken as a universal rule. EWMA
+with α = 0.05 is a practical alternative to SMA when higher storage efficiency is a
+priority and the deployment context matches Firefox-Android characteristics.
+    LAST should generally be avoided: it is significantly worse than all other
+methods in precision, recall, and F1, and achieves the lowest alert coverage (70.2%)
+in the replay experiment.
+    If a learned Transformer predictor is operationally preferred: use the
+compact Transformer under the 60%/20%/20% protocol with dataset-specific HP
+tuning (Section 5.6). On Firefox-Android (WINDOW=20, dmodel = 16), five seeds
+yield F1 = 0.105 (±0.002) and detection rate 74.4%—competitive with tuned SMA.
+On mozilla-beta (WINDOW=10, dmodel = 32), F1 = 0.079 (±0.001) and detection
+rate 89.8%. Storage reduction is lower (67–71% vs. 88–90% for classical methods)
+because the learned predictor activates trace-on windows more frequently at the
+standard anomaly-score threshold; practitioners should calibrate the threshold for
+storage-constrained deployments.
+
+
+
+                                         26
+8.2 ARIMA vs. SMA: Why Not Simply Use SMA?
+A natural question arises: if SMA and ARIMA are not significantly different in F1
+and precision (Wilcoxon p > 0.5), and SMA leads on recall and detection rate, why
+retain ARIMA as the primary engine?
+    We identify three engineering-motivated reasons: (1) SMA’s moving average gener-
+ates a prediction only after the window is fully populated and reacts symmetrically to
+both up and down deviations. ARIMA(1,1,1)’s integrated first-order model can cap-
+ture monotonic trends (e.g., gradual CPU drift) and will continue predicting along
+the new trend after a level shift, thereby reducing spurious alarms for organic load
+growth. (2) In settings where non-stationarity is pronounced (servers with daily sea-
+sonality, progressive memory leaks), the integrated component of ARIMA provides a
+systematic de-trending mechanism that SMA lacks. (3) ARIMA(1,1,1) can be extended
+to ARIMA(p,d,q) by adaptive order selection (AIC/BIC), allowing the system to be
+tuned to the autocorrelation structure of each specific signature.
+    Importantly, these reasons are conceptual and engineering-oriented, not empiri-
+cal: the current benchmark does not provide evidence that ARIMA’s trend-modelling
+advantage manifests in measurably better detection on Mozilla telemetry. Readers
+who prioritise measured accuracy over interpretability or extensibility should consider
+SMA as the deployment default.
+
+8.3 When SMA Is the Better Choice
+SMA retains the highest recall (0.657), detection rate (96%), and alert coverage in
+the replay experiment (93%) among all evaluated methods. Deployment teams on
+resource-constrained systems or requiring maximum recall and coverage should use
+SMA(w=20):
+ Highest recall (0.657), detection rate (96%), and replay alert coverage (93%) among
+  all evaluated methods.
+ Zero training time (deterministic, O(1) memory).
+ Storage reduction 88.83% with no tuning required.
+If storage efficiency and recall are the primary operational objectives, SMA(w=20) is
+the recommended default. For recall with higher storage savings, EWMA(α = 0.05)
+achieves comparable F1 to SMA (Firefox-Android: 0.103 vs. 0.104; mozilla-beta: 0.083
+vs. 0.085) with 89.4%–88.5% storage reduction vs. SMA’s 88.3%–88.8%.
+
+8.4 Precision Ceiling
+Precision is low (< 0.12) for all methods. This is inherent to the dataset: Treeherder
+regression alerts are based on a different detection algorithm (Bayesian change-point
+detection), and many short performance excursions that DAET detects are real per-
+formance anomalies that simply did not persist long enough for Mozilla’s system to
+raise a formal regression ticket. The metric captures how many of our detection win-
+dows coincide with official alerts, not whether the detected anomalies are genuine.
+We therefore distinguish two precision concepts: “Treeherder agreement precision”
+
+
+
+                                          27
+(what Table 3 reports) and “true anomaly precision” (the fraction of detections corre-
+sponding to genuine performance anomalies). The true anomaly precision is unknown
+without manual inspection. A stronger validation would require (i) manual inspection
+of a random sample of alleged false positives to classify them as genuine anomalies
+vs. noise, or (ii) cross-referencing with a second alert source (e.g., Bugzilla regres-
+sion tickets) to identify detections that correspond to real events not yet labelled by
+Treeherder. We acknowledge this as a limitation and note it as directions for future
+work.
+
+8.5 Replay Signature Count Limitation
+The replay experiment (Section 7) reports 136 alerted signatures, whereas the main
+70%/30% evaluation reports 150. This 14-signature discrepancy arises because the
+replay and main-evaluation pipelines are separate scripts that resolve the train–test
+boundary from different intermediate CSV files; minor differences in which rows are
+present cause a different Ttrain cutoff for 14 signatures, shifting their alerts out of
+the test window. This is a data-provenance artefact of the multi-script 70%/30%
+pipeline and does not affect the comparative conclusions across methods, since all four
+detectors are affected identically. The three-way evaluation (Section 5.6) avoids this
+inconsistency entirely by using a single unified pipeline (run full evaluation.py)
+that applies the 60/20/20 split consistently across all methods and both datasets; it
+reports 136 alerted signatures on Firefox-Android and 395 on mozilla-beta without
+ambiguity. For future work, the replay experiment should be re-implemented within
+the unified three-way pipeline to eliminate this source of inconsistency.
+
+8.6 Scientific Conclusions vs. Deployment Recommendations
+It is important to distinguish what the evidence supports scientifically from what it
+supports as a deployment recommendation.
+     What the evidence shows: In the main 70%/30% evaluation, SMA(w=20)
+achieves the highest recall (0.657), detection rate (96.0%), and alert coverage in
+the replay experiment; ARIMA and SMA are statistically indistinguishable in F1
+(p = 0.547) and precision (p = 0.652). The three-way evaluation (60%/20%/20%)
+on two datasets with a compact Transformer (five seeds, identical gating) provides
+the fair learned-predictor comparison: F1 = 0.105 (±0.002) on Firefox-Android and
+F1 = 0.079 (±0.001) on mozilla-beta, confirming that a learned forecasting back-
+bone achieves classical-method-level detection quality when evaluated under equal
+conditions.
+     What the evidence does not show: The evidence does not show that any
+single method is best for all workloads or all deployment contexts. The benchmark
+is limited to one application (Firefox-Android), one telemetry platform (Treeherder),
+and one operating period. Generalisation to other systems, seasonality regimes, or
+alert-generation protocols requires further evaluation.
+     Deployment recommendation: For deployments on resource-constrained sys-
+tems, or where recall and alert coverage are the primary objectives, SMA(w=20) is the
+recommended default: it is fast (30 s), deterministic, and achieves the highest detection
+
+
+                                           28
+rate (96%) and recall (0.657). For a learned predictor, the compact Transformer under
+the 60%/20%/20% protocol (Section 5.6) is the recommended choice, with F1 = 0.105
+on Firefox-Android and 0.079 on mozilla-beta. ARIMA(1,1,1) is appropriate when
+explicit trend modelling, interpretable residuals, or extensibility to higher-order vari-
+ants are required; its 27× runtime overhead (Table 4) should be factored into that
+decision.
+
+9 Threats to Validity
+Internal validity. The four case studies (Section 4) are illustrative demonstrations
+using known bug reports. While the framework’s candidate list was generated inde-
+pendently of the bug report, the evaluation is retrospective and may not generalise
+to bugs of a different character. The large-scale evaluation (Section 5) is prospective
+in the sense that the detectors are trained on the historical period and evaluated on
+a held-out chronological test set, but the main evaluation uses a two-way (70%/30%)
+split. This limitation has been addressed in Section 5.6: a fully separate three-way
+chronological split experiment (60%/20%/20%) was conducted in which SMA w and
+EWMA α are independently selected on the held-out validation set and the test
+set is evaluated only once. The three-way results confirm that the qualitative rank-
+ing (SMA ≈ EWMA > ARIMA > LAST) is preserved under proper hold-out tuning
+(Tables 7–8), and that the main conclusions are not an artefact of parameter selection
+bias. The compact Transformer hyperparameters (window size, dmodel ) were tuned
+on the held-out validation set; the test set was evaluated once. Results are reported
+in Section 5.6 and Tables 7–8: on Firefox-Android the compact Transformer achieves
+F1 = 0.105 (±0.002) and detection rate 74.4%; on mozilla-beta F1 = 0.079 (±0.001),
+slightly below tuned SMA and EWMA.
+    Construct validity. A critical limitation is that this paper evaluates agreement
+with Treeherder alerts, not improvement in actual performance-debugging effec-
+tiveness. Precision, recall, and F1 are computed relative to Treeherder’s Bayesian
+change-point alerts, which are themselves imperfect: they may miss transient regres-
+sions, include false positives from infrastructure changes, and are generated by a
+different detection algorithm with different sensitivity settings. Consequently, the
+paper does not show that DAET improves engineer productivity or reduces time-
+to-root-cause—it shows that DAET’s binary output is correlated with an existing
+automated alerting system. Whether higher Treeherder-agreement precision corre-
+sponds to genuine improvement in debugging utility would require a controlled user
+study or a longitudinal analysis linking DAET-triggered traces to bug-fix time. The
+tolerance window τ = 5 samples introduces further matching leniency. All four sta-
+tistical detectors use the same evaluation protocol, so the comparative findings are
+unaffected by this construct choice, but all absolute precision and recall values should
+be interpreted as “Treeherder-agreement metrics” rather than true anomaly precision
+(see the Precision Ceiling discussion in Section 8). The false-positive counts have not
+been manually adjudicated: a detection event classified as a false positive by Tree-
+herder alignment may correspond to a genuine but unlabelled performance excursion.
+A stricter validation would require manual inspection of a random sample of alleged
+
+
+
+                                           29
+false positives, or cross-referencing with a second alert source (e.g., Bugzilla regression
+tickets).
+    External validity. The evaluation uses two Mozilla Treeherder repositories
+(Firefox-Android and mozilla-beta); both are from the same organisation and CI
+platform, which limits generalisability to other applications, tracing granularities, or
+monitoring infrastructures. The consistent qualitative ranking across both benchmarks
+provides preliminary evidence that results extend beyond a single dataset, but vali-
+dation on external CI systems remains future work. The replay experiment simulates
+storage savings analytically; actual deployment savings depend on storage backend,
+compression, and I/O scheduling.
+    Conclusion validity. Statistical tests are Wilcoxon signed-rank on 214 paired
+observations. The n = 214 sample size provides adequate power for detecting medium-
+to-large effect sizes, but some genuinely small differences between methods may be
+underpowered. With six pairwise comparisons among the four statistical detectors, a
+Bonferroni-corrected threshold is α/6 = 0.008. All p < 0.001 cells satisfy this stricter
+bound; borderline cells (p ∈ (0.001, 0.05] without asterisk) should be interpreted with
+the family-wise correction in mind. The compact Transformer evaluated in Section 5.6
+provides multi-seed confirmation: five independent seeds yield F1 std ≤ 0.002, con-
+firming that training variability is small under the 60%/20%/20% protocol and does
+not alter the qualitative conclusions.
+
+10 Conclusion
+This paper extended the Dynamic Adaptive Execution Tracing (DAET) framework
+originally introduced in [1] with five new contributions: a large-scale comparative
+evaluation of four classical change-detection engines, a compact Transformer encoder
+under fair multi-seed protocol, a formal statistical analysis, a trace-on replay exper-
+iment, and a three-way chronological split experiment. The journal contribution is
+positioned as an empirical comparative extension : the core DAET framework archi-
+tecture was established in the conference paper; this work provides the large-scale
+prospective validation and comparative detector study that was explicitly deferred as
+future work.
+    The framework’s three-phase architecture—function selection via family-group
+analysis and CoV ranking; change detection via a pluggable change-detection engine
+with a dynamic anomaly-score threshold; and trace-configuration gating—was vali-
+dated qualitatively through four Firefox Bugzilla case studies and quantitatively on 214
+Mozilla Firefox-Android Treeherder telemetry signatures across 856 detector–signature
+evaluation pairs.
+    The large-scale evaluation showed that among the four statistical methods,
+SMA(w=20) achieves the highest recall (0.657), F1 (0.186), and detection rate (96.0%),
+making it the strongest statistical baseline. ARIMA(1,1,1) achieves F1 = 0.174
+(95% CI: [0.154, 0.195]) and detection rate 88.67%, and is statistically indistinguishable
+from SMA in F1 (p = 0.547) and precision (p = 0.652); both significantly outper-
+form LAST and EWMA. A three-way chronological split experiment (60%/20%/20%)
+across Firefox-Android and mozilla-beta with independent per-dataset validation-set
+
+
+
+                                            30
+tuning showed that properly tuned EWMA(α = 0.05) matches SMA in F1 on both
+datasets (Firefox-Android: EWMA 0.103 vs. SMA 0.104; mozilla-beta: EWMA 0.083
+vs. SMA 0.085). The qualitative ranking (SMA ≈ EWMA ≥ ARIMA > LAST) is con-
+sistent across both datasets, supporting the generalisability of these findings beyond
+a single benchmark. ARIMA(1,1,1) is an appropriate alternative when explicit trend
+modelling, interpretable residuals, or extensibility to higher-order ARIMA variants
+are operationally required; at 27× the runtime cost and 16× the memory footprint of
+SMA (Table 4), it should not be used as the default engine on the basis of measured
+accuracy alone. The replay experiment confirmed that all four statistical detectors
+reduce trace storage by 89–91%, with SMA achieving the highest mean per-signature
+alert recall (93.0%) and EWMA the highest storage reduction (91.0%). The ablation
+study confirmed that the default parameters (β = 0.30, θ = 0.30, ARIMA(1,1,1),
+τ = 5) are an operationally justified high-recall configuration, not globally optimal set-
+tings: β = 0.20 yields ARIMA F1 = 0.266 (vs. the default 0.144), and θ ≥ 0.40 yields
+F1 = 0.27 at the cost of lower recall. The comparative conclusions across methods are
+stable across the full parameter range tested.
+     The compact Transformer (five seeds, 60%/20%/20% protocol, dataset-specific HP
+tuning) achieves F1 = 0.105 (±0.002) and detection rate 74.4% on Firefox-Android—
+competitive with tuned SMA (F1 = 0.104)—and F1 = 0.079 (±0.001) on mozilla-
+beta. Across both datasets the Transformer’s storage reduction (67–71%) is lower than
+classical methods (88–90%), reflecting more frequent predictor activation; threshold
+calibration is recommended for storage-constrained deployments.
+     Future work. Open directions include: (i) validating the low-precision findings
+against a manually annotated subset of alleged false positives and against Bugzilla
+regression reports to estimate true anomaly precision; (ii) extending the frame-
+work to seasonally non-stationary workloads using SARIMA or STL decomposition;
+(iii) integrating anomaly score signals directly into an observability platform (e.g.,
+Prometheus/Grafana) for real-time deployment; (iv) evaluating the framework on
+additional CI/CD pipelines beyond Mozilla Firefox; and (v) extending the dual-dataset
+evaluation to additional Mozilla CI projects and to external production systems
+beyond Firefox to assess cross-domain generalisability of the qualitative ranking.
+Acknowledgements. The authors thank the Mozilla Performance Team for making
+the Treeherder telemetry dataset publicly available.
+
+Declarations
+Conflict of interest: The authors declare no conflict of interest.
+Data and code availability: All source code for the experimental pipeline, evalua-
+tion, ablation, replay experiments, and figure generation is publicly available at https:
+//github.com/ghazalkhb/Performance-Debugging. A tagged release corresponding to
+the exact version used for this paper is provided. The repository includes:
+ requirements.txt with pinned package versions (Python 3.12, statsmodels 0.13.5,
+  numpy 1.24, pandas 2.0, scipy 1.11, torch 2.4.1+cpu);
+ run full evaluation.py: unified dual-dataset evaluation pipeline that runs all
+  five methods (ARIMA, LAST, SMA, EWMA, and compact Transformer) on both
+
+
+                                           31
+  datasets under the 60%/20%/20% protocol and reproduces all three-way tables and
+  figures with a single command;
+ preprocessing instructions for obtaining and filtering the Mozilla Treeherder dataset
+  (signature matching, length filters, alert alignment);
+ all random seeds are fixed to 42 in the bootstrap resampling; the detectors
+  themselves are deterministic.
+The Mozilla performance-telemetry datasets are publicly accessible via the Tree-
+herder API at https://treeherder.mozilla.org/ under the projects firefox-android
+and mozilla-beta.
+
+References
+ [1] Khan, M. A. & Ezzati-Jivan, N. Multi-level Adaptive Execution Tracing for
+     Efficient Performance Analysis, 104–109 (2023).
+
+ [2] Cantrill, B., Shapiro, M. W. & Leventhal, A. H. Dynamic Instrumentation of
+     Production Systems, 15–28 (2004).
+
+ [3] Desnoyers, M. & Dagenais, M. R. The lttng tracer: A low impact performance
+     and behavior monitor for gnu/linux, Vol. 2006, 209–224 (Citeseer, 2006).
+
+ [4] Rostedt, S. Ftrace linux kernel tracing (2010).
+
+ [5] Gebai, M. & Dagenais, M. R. Survey and Analysis of Kernel and Userspace
+     Tracers on Linux. ACM Computing Surveys 51, 1–33 (2018). URL http://dx.
+     doi.org/10.1145/3158644.
+
+ [6] Arulraj, J., Chang, P.-C., Jin, G. & Lu, S. Production-run software failure diag-
+     nosis via hardware performance counters. Acm Sigplan Notices 48, 101–112
+     (2013).
+
+ [7] Calcagno, C. et al. Moving Fast with Software Verification, 3–11 (Springer, 2015).
+
+ [8] Hovemeyer, D. & Pugh, W. Finding Bugs is Easy. ACM SIGPLAN Notices 39,
+     92–106 (2004).
+
+ [9] Jin, G., Song, L., Shi, X., Scherpelz, J. & Lu, S. Understanding and detecting
+     real-world performance bugs. ACM SIGPLAN Notices 47, 77–88 (2012).
+
+[10] Nistor, A., Chang, P.-C., Radoi, C. & Lu, S. Caramel: Detecting and Fixing
+     Performance Problems That Have Non-intrusive Fixes, Vol. 1, 902–912 (IEEE,
+     2015).
+
+[11] Dai, T., Dean, D., Wang, P., Gu, X. & Lu, S. Hytrace: A hybrid approach to per-
+     formance bug diagnosis in production cloud infrastructures. IEEE Transactions
+     on Parallel and Distributed Systems 30, 107–118 (2018).
+
+
+
+                                          32
+[12] Mace, J., Roelke, R. & Fonseca, R. Pivot Tracing: Dynamic Causal Monitoring
+     for Distributed Systems, 378–393 (2015).
+
+[13] Mirgorodskiy, A. V. Automated problem diagnosis in distributed systems. Ph.D.
+     thesis, University of Wisconsin–Madison (2006).
+
+[14] Dean, D. J. et al. Perfscope: Practical Online Server Performance Bug Inference
+     in Production Cloud Computing Infrastructures, 1–13 (2014).
+
+[15] Nguyen, H., Shen, Z., Tan, Y. & Gu, X. FChain: Toward Black-box Online Fault
+     Localization for Cloud Systems, 21–30 (2013).
+
+[16] Zhang, S., Liu, D., Zhou, L., Ren, Z. & Wang, Z. Diagnostic Framework for Dis-
+     tributed Application Performance Anomaly Based on Adaptive Instrumentation,
+     164–169 (IEEE, 2020).
+
+[17] Tate, A. B. & Bewoor, L. A. Optimization of system’s performance with kernel
+     tracing by cohort intelligence. International Journal of Information Technology
+     and Computer Science(IJITCS) (2017).
+
+[18] Ehlers, J. & Hasselbring, W. Self-Adaptive Performance Monitoring of Service-
+     Oriented Systems. SOCA 5, 225–242 (2011).
+
+[19] Ates, E. et al. An Automated, Cross-layer Instrumentation Framework for
+     Diagnosing Performance Problems in Distributed Applications, 165–170 (2019).
+
+[20] Liu, D. et al. Opprentice: Towards Practical and Automatic Anomaly Detection
+     Through Machine Learning, 211–224 (ACM, 2015).
+
+[21] Lavin, A. & Ahmad, S. Evaluating Real-time Anomaly Detection Algorithms –
+     The Numenta Anomaly Benchmark, 38–44 (IEEE, 2015).
+
+[22] Laptev, N., Amizadeh, S. & Flint, I. Generic and Scalable Framework for
+     Automated Time-series Anomaly Detection, 1939–1947 (ACM, 2015).
+
+[23] Cid-Fuentes, J. A., Szabo, C. & Falkner, K. Adaptive performance anomaly detec-
+     tion in distributed systems using online svms. IEEE Transactions on Dependable
+     and Secure Computing 17, 928–941 (2018).
+
+[24] Laguna, I. et al. Automatic problem localization via multi-dimensional metric
+     profiling (2013).
+
+[25] Munawar, M. A., Jiang, M., Reidemeister, T. & Ward, P. A. Filtering system
+     metrics for minimal correlation-based self-monitoring (2009).
+
+[26] Dymshits, M., Myara, B. & Tolpin, D. Process monitoring on sequences of system
+     call count vectors (2017).
+
+
+
+                                        33
+[27] Han, S., Dang, Y., Ge, S., Zhang, D. & Xie, T. Performance Debugging in the
+     Large via Mining Millions of Stack Traces, 145–155 (IEEE, 2012).
+
+[28] Valsorda, F. Linux System Call Table. https://filippo.io/linux-syscall-table/
+     (2014).
+
+[29] Mozilla Foundation. Treeherder: Mozilla Performance Testing and Alerting
+     Platform. https://treeherder.mozilla.org/ (2023). Accessed: 2024.
+
+[30] Seabold, S. & Perktold, J. Statsmodels: Econometric and statistical modeling
+     with Python. 9th Python in Science Conference (2010).
+
+
+
+
+                                       34
+

@@ -1,0 +1,131 @@
+﻿python.exe : d:\Naser\2\results\_compute_v3_stats.py:87: RuntimeWarning: Mean 
+of empty slice.
+At line:1 char:1
++ & python 'd:\Naser\2\results\_compute_v3_stats.py' 2>&1 | Out-File 'd ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (d:\Naser\2\resu...of empty slice. 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  print(f"    {name}: p={pval:.4g}{sig}  (TF_mean={a.mean():.4f} 
+cls_mean={b.mean():.4f})")
+C:\Users\acer\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\c
+ore\_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+d:\Naser\2\results\_compute_v3_stats.py:87: RuntimeWarning: Mean of empty 
+slice.
+  print(f"    {name}: p={pval:.4g}{sig}  (TF_mean={a.mean():.4f} 
+cls_mean={b.mean():.4f})")
+C:\Users\acer\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\c
+ore\_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+d:\Naser\2\results\_compute_v3_stats.py:87: RuntimeWarning: Mean of empty 
+slice.
+  print(f"    {name}: p={pval:.4g}{sig}  (TF_mean={a.mean():.4f} 
+cls_mean={b.mean():.4f})")
+C:\Users\acer\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\c
+ore\_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+d:\Naser\2\results\_compute_v3_stats.py:87: RuntimeWarning: Mean of empty 
+slice.
+  print(f"    {name}: p={pval:.4g}{sig}  (TF_mean={a.mean():.4f} 
+cls_mean={b.mean():.4f})")
+Columns: ['method', 'signature_id', 'T_total', 'T_train', 'T_test', 'Num_Alerts_Test', 'Was_Alert_Detected', 'Unique_Changes', 'Samples_Recorded', 'Enabled_Fraction', 'Storage_Reduction', 'Precision', 'Recall', 'F1', 'TP_intervals', 'FP_intervals', 'FN_alerts', 'False_Alarm_Rate', 'Delay_Mean', 'Delay_Median', 'Delay_Std', 'Delay_Min', 'Delay_Max', 'Delay_P10', 'Delay_P90', 'Runtime_ms', 'Peak_Mem_KB', 't', 'actual', 'predicted', 'delta', 'isAnomaly', 'anomalyScore', 'decision', 'runtime_ms', 'peak_mem_KB']
+Methods: ['ARIMA', 'LAST', 'SMA', 'EWMA', 'Transformer']
+Shape: (1070, 36)
+  method  signature_id  T_total  ...  decision  runtime_ms  peak_mem_KB
+0  ARIMA       4653699      602  ...       NaN         NaN          NaN
+1  ARIMA       4653700      602  ...       NaN         NaN          NaN
+2  ARIMA       4653701      602  ...       NaN         NaN          NaN
+
+[3 rows x 36 columns]
+
+Using cols: prec=Precision, rec=Recall, f1=F1, far=False_Alarm_Rate
+Methods found: ['ARIMA', 'LAST', 'SMA', 'EWMA', 'Transformer']
+Transformer name: ['Transformer']
+
+=== BOOTSTRAP CI (V3 Transformer) ===
+  Precision: [0.160, 0.257]  (n=214)
+  Recall: [0.271, 0.397]  (n=214)
+  F1: [0.180, 0.280]  (n=214)
+  FAR: [0.009, 0.017]  (n=214)
+
+=== BOOTSTRAP CI ALL METHODS ===
+  ARIMA: P=[0.093,0.119]  R=[0.543,0.668]  F1=[0.154,0.195]  FAR=[0.0502,0.0554]
+  LAST: P=[0.067,0.092]  R=[0.423,0.550]  F1=[0.114,0.153]  FAR=[0.0503,0.0545]
+  SMA: P=[0.099,0.125]  R=[0.596,0.719]  F1=[0.166,0.206]  FAR=[0.0494,0.0543]
+  EWMA: P=[0.078,0.103]  R=[0.498,0.625]  F1=[0.131,0.171]  FAR=[0.0533,0.0581]
+  Transformer: P=[0.160,0.257]  R=[0.271,0.397]  F1=[0.180,0.280]  FAR=[0.0093,0.0172]
+
+=== WILCOXON: V3 Transformer vs Classical Methods ===
+
+  Transformer vs ARIMA  (n=0 common sigs):
+    Precision: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    Recall: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    F1: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    FAR: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+
+  Transformer vs LAST  (n=0 common sigs):
+    Precision: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    Recall: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    F1: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    FAR: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+
+  Transformer vs SMA  (n=0 common sigs):
+    Precision: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    Recall: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    F1: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    FAR: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+
+  Transformer vs EWMA  (n=0 common sigs):
+    Precision: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    Recall: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    F1: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+    FAR: p=nan (ns)  (TF_mean=nan cls_mean=nan)
+
+=== V3 Transformer Summary Statistics ===
+  n_signatures = 214
+  Precision: mean=0.2078  std=0.3687
+  Recall: mean=0.3341  std=0.4704
+  F1: mean=0.2293  std=0.3787
+  False_Alarm_Rate: mean=0.0130  std=0.0288
+  Was_Alert_Detected: <StringArray>
+['Yes', 'No']
+Length: 2, dtype: str
+  Storage_Reduction: mean=0.6860  std=0.4208
+  Delay_Mean: mean=-42.0556  std=43.8910
+  Delay_Median: mean=-42.0278  std=43.8955
+  Delay_Std: mean=3.3156  std=8.8715
+  Delay_Min: mean=-45.4583  std=46.7193
+  Delay_Max: mean=-38.6806  std=42.8252
+  Delay_P10: mean=-44.7722  std=46.0220
+  Delay_P90: mean=-39.3500  std=42.8923
+  Runtime_ms: mean=51515.8850  std=23108.5999
+  Peak_Mem_KB: mean=633.0000  std=0.0000
+  runtime_ms: mean=nan  std=nan
+  peak_mem_KB: mean=nan  std=nan
+
+=== SUMMARY.JSON ===
+  transformer_version: "v3"
+
+Found file: _compute_v3_stats.py
+
+Done.
+C:\Users\acer\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\c
+ore\_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+d:\Naser\2\results\_compute_v3_stats.py:106: RuntimeWarning: Mean of empty 
+slice.
+  print(f"  {col}: mean={vals.mean():.4f}  std={vals.std():.4f}")
+C:\Users\acer\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\c
+ore\_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+C:\Users\acer\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\c
+ore\_methods.py:206: RuntimeWarning: Degrees of freedom <= 0 for slice
+  ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+C:\Users\acer\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\c
+ore\_methods.py:163: RuntimeWarning: invalid value encountered in divide
+  arrmean = um.true_divide(arrmean, div, out=arrmean,
+C:\Users\acer\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\c
+ore\_methods.py:198: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)

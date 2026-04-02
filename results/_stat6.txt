@@ -1,0 +1,11 @@
+(per-signature training + batch inference) ...
+=================================================================
+    [TransformerV2] 1/214 | 111s elapsed
+    [TransformerV2] 20/214 | 480s elapsed
+    [TransformerV2] 40/214 | 809s elapsed
+    [TransformerV2] 60/214 | 1118s elapsed
+    [TransformerV2] 80/214 | 1348s elapsed
+    [TransformerV2] 100/214 | 1628s elapsed
+    [TransformerV2] 120/214 | 1980s elapsed
+    [TransformerV2] 140/214 | 2360s elapsed
+    [TransformerV2] 160/214 | 2718s elapsed

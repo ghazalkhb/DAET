@@ -1,0 +1,51 @@
+Loading alerts ...
+Scanning timeseries directory: d:\Naser\2\Data\timeseries-data\firefox-android
+  Loaded 341 eligible signatures (len <= 800, >= 60 steps).
+  Selected 50 signatures (every 6th) for ablation.
+
+Running ARIMA order ablation (50 signatures, 5 orders) ...
+  Order (1, 0, 0) ...
+      ... 10/50 sigs
+      ... 20/50 sigs
+      ... 30/50 sigs
+      ... 40/50 sigs
+      ... 50/50 sigs
+  (1, 0, 0): P=0.033 R=0.300 F1=0.058 FAR=0.07212  (53.3s)
+  Order (0, 1, 1) ...
+      ... 10/50 sigs
+      ... 20/50 sigs
+      ... 30/50 sigs
+      ... 40/50 sigs
+      ... 50/50 sigs
+  (0, 1, 1): P=0.039 R=0.280 F1=0.067 FAR=0.06252  (44.1s)
+  Order (1, 1, 0) ...
+      ... 10/50 sigs
+      ... 20/50 sigs
+      ... 30/50 sigs
+      ... 40/50 sigs
+      ... 50/50 sigs
+  (1, 1, 0): P=0.037 R=0.300 F1=0.065 FAR=0.06300  (38.0s)
+  Order (1, 1, 1) ...
+      ... 10/50 sigs
+      ... 20/50 sigs
+      ... 30/50 sigs
+      ... 40/50 sigs
+      ... 50/50 sigs
+  (1, 1, 1): P=0.039 R=0.280 F1=0.067 FAR=0.06309  (46.4s)
+  Order (2, 1, 2) ...
+      ... 10/50 sigs
+      ... 20/50 sigs
+      ... 30/50 sigs
+      ... 40/50 sigs
+      ... 50/50 sigs
+  (2, 1, 2): P=0.038 R=0.280 F1=0.066 FAR=0.06201  (59.3s)
+
+Total elapsed: 241.0s
+
+Saved 5 rows -> d:\Naser\2\results\ablation_arima_order.csv
+arima_order  n_sigs  mean_precision  mean_recall  mean_f1  mean_far
+  (1, 0, 0)      50          0.0329         0.30   0.0581  0.072121
+  (0, 1, 1)      50          0.0391         0.28   0.0672  0.062524
+  (1, 1, 0)      50          0.0373         0.30   0.0650  0.063004
+  (1, 1, 1)      50          0.0388         0.28   0.0667  0.063085
+  (2, 1, 2)      50          0.0383         0.28   0.0662  0.062010

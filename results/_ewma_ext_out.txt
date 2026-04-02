@@ -1,0 +1,88 @@
+
+======================================================================
+  EWMA Extended Tuning: firefox-android  (repo=firefox-android)
+======================================================================
+  Loaded 342 valid signatures (len >= 30)
+  Valid signatures (T_test >= 2): 342
+
+  Tuning EWMA on validation set (extended grid) ...
+    alpha=0.01: val F1 = 0.0772
+    alpha=0.02: val F1 = 0.0760
+    alpha=0.03: val F1 = 0.0879
+    alpha=0.05: val F1 = 0.0978
+    alpha=0.10: val F1 = 0.0947
+    alpha=0.15: val F1 = 0.0841
+    alpha=0.20: val F1 = 0.0828
+    alpha=0.25: val F1 = 0.0793
+    alpha=0.30: val F1 = 0.0749
+    alpha=0.40: val F1 = 0.0745
+    alpha=0.50: val F1 = 0.0709
+
+  >>> Best EWMA alpha = 0.05  (val F1 = 0.0978)
+
+  Evaluating on test set with alpha = 0.05 ...
+
+  Test results (alpha=0.05):
+    n_signatures: 342
+    n_with_alerts: 136
+    mean_precision: 0.0676
+    mean_recall: 0.2632
+    mean_f1: 0.1033
+    mean_far: 0.052155
+    mean_storage_reduc: 0.8943
+    detection_rate_pct: 67.65
+  Tuning plot saved: D:\Naser\2\results\firefox-android\plots\val_tuning_ewma_extended.png
+
+======================================================================
+  EWMA Extended Tuning: mozilla-beta  (repo=mozilla-beta)
+======================================================================
+  Loaded 1477 valid signatures (len >= 30)
+  Valid signatures (T_test >= 2): 1477
+
+  Tuning EWMA on validation set (extended grid) ...
+    alpha=0.01: val F1 = 0.1304
+    alpha=0.02: val F1 = 0.1232
+    alpha=0.03: val F1 = 0.1349
+    alpha=0.05: val F1 = 0.1453
+    alpha=0.10: val F1 = 0.1419
+    alpha=0.15: val F1 = 0.1388
+    alpha=0.20: val F1 = 0.1343
+    alpha=0.25: val F1 = 0.1302
+    alpha=0.30: val F1 = 0.1280
+    alpha=0.40: val F1 = 0.1228
+    alpha=0.50: val F1 = 0.1200
+
+  >>> Best EWMA alpha = 0.05  (val F1 = 0.1453)
+
+  Evaluating on test set with alpha = 0.05 ...
+
+  Test results (alpha=0.05):
+    n_signatures: 1477
+    n_with_alerts: 395
+    mean_precision: 0.057
+    mean_recall: 0.2363
+    mean_f1: 0.083
+    mean_far: 0.059159
+    mean_storage_reduc: 0.8847
+    detection_rate_pct: 90.63
+  Tuning plot saved: D:\Naser\2\results\mozilla-beta\plots\val_tuning_ewma_extended.png
+
+  Results saved: D:\Naser\2\results\ewma_extended_tuning.json
+
+======================================================================
+  SUMMARY: Extended EWMA Tuning Results
+======================================================================
+
+  firefox-android:
+    Previous best alpha : 0.05  (val F1 = 0.0978)
+    New best alpha      : 0.05  (val F1 = 0.0978)
+    Alpha changed?      : NO — alpha=0.05 confirmed
+    Test P/R/F1/FAR/Det : 0.0676/0.2632/0.1033/0.052155/67.65
+
+  mozilla-beta:
+    Previous best alpha : 0.05  (val F1 = 0.1453)
+    New best alpha      : 0.05  (val F1 = 0.1453)
+    Alpha changed?      : NO — alpha=0.05 confirmed
+    Test P/R/F1/FAR/Det : 0.057/0.2363/0.083/0.059159/90.63
+
+  Total time: 1040s

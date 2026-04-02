@@ -1,0 +1,166 @@
+{
+  "ARIMA": {
+    "GT_treeherder": {
+      "mean_precision": 0.0342,
+      "std_precision": 0.0694,
+      "mean_recall": 0.25,
+      "std_recall": 0.4289,
+      "mean_f1": 0.0583,
+      "std_f1": 0.112,
+      "mean_far": 0.0564,
+      "std_far": 0.018,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 139,
+      "n_detections_total": 2199
+    },
+    "GT_bz_filed": {
+      "mean_precision": 0.0009,
+      "std_precision": 0.0092,
+      "mean_recall": 0.0093,
+      "std_recall": 0.0962,
+      "mean_f1": 0.0016,
+      "std_f1": 0.0167,
+      "mean_far": 0.0582,
+      "std_far": 0.0178,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 2,
+      "n_detections_total": 2199
+    },
+    "GT_bz_fixed": {
+      "mean_precision": 0.0,
+      "std_precision": 0.0,
+      "mean_recall": 0.0,
+      "std_recall": 0.0,
+      "mean_f1": 0.0,
+      "std_f1": 0.0,
+      "mean_far": 0.0582,
+      "std_far": 0.0178,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 0,
+      "n_detections_total": 2199
+    }
+  },
+  "LAST": {
+    "GT_treeherder": {
+      "mean_precision": 0.044,
+      "std_precision": 0.0744,
+      "mean_recall": 0.2991,
+      "std_recall": 0.4501,
+      "mean_f1": 0.0751,
+      "std_f1": 0.1233,
+      "mean_far": 0.0541,
+      "std_far": 0.0151,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 139,
+      "n_detections_total": 2132
+    },
+    "GT_bz_filed": {
+      "mean_precision": 0.0009,
+      "std_precision": 0.0098,
+      "mean_recall": 0.0093,
+      "std_recall": 0.0962,
+      "mean_f1": 0.0017,
+      "std_f1": 0.0176,
+      "mean_far": 0.0565,
+      "std_far": 0.0149,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 2,
+      "n_detections_total": 2132
+    },
+    "GT_bz_fixed": {
+      "mean_precision": 0.0,
+      "std_precision": 0.0,
+      "mean_recall": 0.0,
+      "std_recall": 0.0,
+      "mean_f1": 0.0,
+      "std_f1": 0.0,
+      "mean_far": 0.0565,
+      "std_far": 0.0149,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 0,
+      "n_detections_total": 2132
+    }
+  },
+  "SMA": {
+    "GT_treeherder": {
+      "mean_precision": 0.0399,
+      "std_precision": 0.0749,
+      "mean_recall": 0.2804,
+      "std_recall": 0.4439,
+      "mean_f1": 0.0676,
+      "std_f1": 0.1199,
+      "mean_far": 0.0555,
+      "std_far": 0.0187,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 139,
+      "n_detections_total": 2179
+    },
+    "GT_bz_filed": {
+      "mean_precision": 0.0011,
+      "std_precision": 0.0118,
+      "mean_recall": 0.0093,
+      "std_recall": 0.0962,
+      "mean_f1": 0.002,
+      "std_f1": 0.021,
+      "mean_far": 0.0575,
+      "std_far": 0.0182,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 2,
+      "n_detections_total": 2179
+    },
+    "GT_bz_fixed": {
+      "mean_precision": 0.0,
+      "std_precision": 0.0,
+      "mean_recall": 0.0,
+      "std_recall": 0.0,
+      "mean_f1": 0.0,
+      "std_f1": 0.0,
+      "mean_far": 0.0576,
+      "std_far": 0.0183,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 0,
+      "n_detections_total": 2179
+    }
+  },
+  "EWMA": {
+    "GT_treeherder": {
+      "mean_precision": 0.0382,
+      "std_precision": 0.0677,
+      "mean_recall": 0.3014,
+      "std_recall": 0.455,
+      "mean_f1": 0.066,
+      "std_f1": 0.1107,
+      "mean_far": 0.0586,
+      "std_far": 0.0178,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 139,
+      "n_detections_total": 2294
+    },
+    "GT_bz_filed": {
+      "mean_precision": 0.0009,
+      "std_precision": 0.01,
+      "mean_recall": 0.0093,
+      "std_recall": 0.0962,
+      "mean_f1": 0.0017,
+      "std_f1": 0.018,
+      "mean_far": 0.0607,
+      "std_far": 0.0174,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 2,
+      "n_detections_total": 2294
+    },
+    "GT_bz_fixed": {
+      "mean_precision": 0.0,
+      "std_precision": 0.0,
+      "mean_recall": 0.0,
+      "std_recall": 0.0,
+      "mean_f1": 0.0,
+      "std_f1": 0.0,
+      "mean_far": 0.0607,
+      "std_far": 0.0174,
+      "n_signatures": 214,
+      "n_sigs_with_alerts": 0,
+      "n_detections_total": 2294
+    }
+  }
+}

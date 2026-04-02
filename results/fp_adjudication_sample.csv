@@ -1,0 +1,61 @@
+sample_id,method,signature_id,suite,test_name,platform,iv_start,iv_end,iv_duration_steps,is_sustained,peak_anomaly_score,mean_anomaly_score,peak_abs_error,nearest_alert_dist,adjudication
+1,SMA,4654388,stackoverflow,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,421,423,3,False,0.51,0.389,55.35,63,likely genuine anomaly
+2,SMA,4654149,speedometer3,nan,android-hw-a51-11-0-aarch64-shippable-qr,583,583,1,False,0.309,0.309,0.1408,47,likely noise
+3,SMA,4654104,google,ContentfulSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,504,504,1,False,0.3001,0.3001,17.805,114,likely noise
+4,SMA,4654647,bing-search-restaurants,LastVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,474,474,1,False,0.3131,0.3131,149.57,-1,likely noise
+5,SMA,4653840,bing,fcp,android-hw-a51-11-0-aarch64-shippable-qr,564,564,1,False,0.3013,0.3013,14.575,-1,likely noise
+6,SMA,4653842,bing,loadtime,android-hw-a51-11-0-aarch64-shippable-qr,542,542,1,False,0.3515,0.3515,8.145,-1,likely noise
+7,SMA,4653889,espn,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,545,545,1,False,0.3,0.3,9.8108,-1,likely noise
+8,SMA,4654637,bing-search-restaurants,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,551,553,3,False,0.5332,0.4132,58.71,29,likely genuine anomaly
+9,SMA,4654584,dailymail,LastVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,463,464,2,False,0.4596,0.3907,160.805,15,unclear
+10,SMA,4654423,cnn-ampstories,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,414,414,1,False,0.3077,0.3077,78.525,52,likely noise
+11,SMA,4653871,wikipedia,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,445,445,1,False,0.3012,0.3012,1679.3325,-1,likely noise
+12,SMA,4653894,espn,fcp,android-hw-a51-11-0-aarch64-shippable-qr,611,611,1,False,0.325,0.325,19.43,-1,likely noise
+13,SMA,4669835,apk-size-fenixDebug,nan,fenix-android-all,2041,2050,10,True,0.9184,0.6286,544082.35,-1,likely genuine anomaly
+14,SMA,4654135,imdb,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,524,524,1,False,0.3,0.3,94.1525,56,likely noise
+15,SMA,4654640,bing-search-restaurants,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,438,438,1,False,0.3,0.3,73.75,84,likely noise
+16,SMA,4654584,dailymail,LastVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,453,454,2,False,0.447,0.38,213.19,25,unclear
+17,SMA,4654074,facebook-cristiano,fcp,android-hw-a51-11-0-aarch64-shippable-qr,512,512,1,False,0.4248,0.4248,9.5373,93,likely noise
+18,SMA,4654566,sina,LastVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,534,536,3,False,0.5173,0.3966,3972.52,25,likely genuine anomaly
+19,SMA,4654095,google,ContentfulSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,480,484,5,True,0.6691,0.4635,452.125,56,likely genuine anomaly
+20,SMA,4654105,google,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,534,534,1,False,0.3,0.3,15.215,84,likely noise
+21,SMA,4654107,google,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,434,437,4,False,0.5311,0.4262,25.315,184,likely genuine anomaly
+22,SMA,4654318,cnn,fcp,android-hw-a51-11-0-aarch64-shippable-qr,515,515,1,False,0.3,0.3,166.392,94,likely noise
+23,SMA,4654107,google,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,575,581,7,True,0.6614,0.4737,66.3883,43,likely genuine anomaly
+24,SMA,4654128,reddit,fcp,android-hw-a51-11-0-aarch64-shippable-qr,442,442,1,False,0.3247,0.3247,14.3425,-1,likely noise
+25,SMA,4654577,sina,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,490,490,1,False,0.3002,0.3002,45.625,69,likely noise
+26,SMA,4654669,youtube-watch,fcp,android-hw-a51-11-0-aarch64-shippable-qr,543,543,1,False,0.3002,0.3002,10.2525,-1,likely noise
+27,SMA,4654513,ebay-kleinanzeigen-search,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,582,582,1,False,0.3,0.3,132.965,75,likely noise
+28,SMA,4654393,stackoverflow,ContentfulSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,424,424,1,False,0.3087,0.3087,24.9,-1,likely noise
+29,SMA,4653840,bing,fcp,android-hw-a51-11-0-aarch64-shippable-qr,499,499,1,False,0.3,0.3,11.68,-1,likely noise
+30,SMA,4654575,sina,LastVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,490,490,1,False,0.3002,0.3002,75.735,69,likely noise
+31,EWMA,4654667,youtube-watch,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,418,419,2,False,0.4707,0.4001,32.6859,-1,unclear
+32,EWMA,4653825,bing,ContentfulSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,417,417,1,False,0.303,0.303,1982.9923,71,likely noise
+33,EWMA,4653988,google-maps,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,518,522,5,True,0.6675,0.4617,1096.3234,14,likely genuine anomaly
+34,EWMA,4654684,allrecipes,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,411,411,1,False,0.3,0.3,104.7621,-1,likely noise
+35,EWMA,4654041,amazon,ContentfulSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,558,558,1,False,0.3187,0.3187,60.4684,95,likely noise
+36,EWMA,4654069,facebook-cristiano,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,512,512,1,False,0.3,0.3,14.2881,93,likely noise
+37,EWMA,4654050,amazon,ContentfulSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,466,466,1,False,0.3309,0.3309,110.5909,86,likely noise
+38,EWMA,4653876,wikipedia,fcp,android-hw-a51-11-0-aarch64-shippable-qr,423,423,1,False,0.3,0.3,6.7244,-1,likely noise
+39,EWMA,4654322,cnn,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,469,469,1,False,0.3093,0.3093,547.259,55,likely noise
+40,EWMA,4654112,google,loadtime,android-hw-a51-11-0-aarch64-shippable-qr,438,441,4,False,0.6482,0.4792,33.5467,-1,likely genuine anomaly
+41,EWMA,4654577,sina,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,538,540,3,False,0.51,0.389,4163.3121,21,likely genuine anomaly
+42,EWMA,4654664,youtube-watch,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,590,590,1,False,0.3007,0.3007,25.75,-1,likely noise
+43,EWMA,4654351,web-de,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,440,440,1,False,0.3504,0.3504,61.9594,25,likely noise
+44,EWMA,4653867,wikipedia,fcp,android-hw-a51-11-0-aarch64-shippable-qr,530,530,1,False,0.3,0.3,51.8524,36,likely noise
+45,EWMA,4654590,dailymail,loadtime,android-hw-a51-11-0-aarch64-shippable-qr,491,491,1,False,0.3741,0.3741,117.643,-1,likely noise
+46,EWMA,4654396,stackoverflow,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,460,460,1,False,0.3307,0.3307,25.3453,-1,likely noise
+47,EWMA,4654395,stackoverflow,LastVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,521,521,1,False,0.3,0.3,427.7148,-1,likely noise
+48,EWMA,4654068,facebook-cristiano,ContentfulSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,549,551,3,False,0.51,0.389,15.6259,56,likely genuine anomaly
+49,EWMA,4654675,allrecipes,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,465,467,3,False,0.5306,0.4105,478.7494,12,likely genuine anomaly
+50,EWMA,4654567,sina,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,472,472,1,False,0.3019,0.3019,3654.3836,87,likely noise
+51,EWMA,4654107,google,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,575,577,3,False,0.51,0.389,64.1731,43,likely genuine anomaly
+52,EWMA,4654397,stackoverflow,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,553,553,1,False,0.3005,0.3005,39.7285,-1,likely noise
+53,EWMA,4654080,ebay-kleinanzeigen,PerceptualSpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,515,517,3,False,0.5159,0.3952,383.7918,47,likely genuine anomaly
+54,EWMA,4654045,amazon,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,447,447,1,False,0.3002,0.3002,173.0663,16,likely noise
+55,EWMA,4654430,cnn-ampstories,FirstVisualChange,android-hw-a51-11-0-aarch64-shippable-qr,526,526,1,False,0.302,0.302,21.6491,-1,likely noise
+56,EWMA,4654110,google,fcp,android-hw-a51-11-0-aarch64-shippable-qr,436,436,1,False,0.4088,0.4088,20.1083,-1,likely noise
+57,EWMA,4653842,bing,loadtime,android-hw-a51-11-0-aarch64-shippable-qr,417,417,1,False,0.3059,0.3059,19.0893,-1,likely noise
+58,EWMA,4654099,google,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,584,584,1,False,0.3017,0.3017,58.7362,48,likely noise
+59,EWMA,4653885,espn,fcp,android-hw-a51-11-0-aarch64-shippable-qr,570,570,1,False,0.3247,0.3247,163.0365,-1,likely noise
+60,EWMA,4654640,bing-search-restaurants,SpeedIndex,android-hw-a51-11-0-aarch64-shippable-qr,410,410,1,False,0.4118,0.4118,56.2835,112,likely noise

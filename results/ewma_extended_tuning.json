@@ -1,0 +1,56 @@
+{
+  "firefox-android": {
+    "dataset": "firefox-android",
+    "best_alpha": 0.05,
+    "val_tuning_f1": {
+      "0.01": 0.0772,
+      "0.02": 0.076,
+      "0.03": 0.0879,
+      "0.05": 0.0978,
+      "0.1": 0.0947,
+      "0.15": 0.0841,
+      "0.2": 0.0828,
+      "0.25": 0.0793,
+      "0.3": 0.0749,
+      "0.4": 0.0745,
+      "0.5": 0.0709
+    },
+    "test_results": {
+      "n_signatures": 342,
+      "n_with_alerts": 136,
+      "mean_precision": 0.0676,
+      "mean_recall": 0.2632,
+      "mean_f1": 0.1033,
+      "mean_far": 0.052155,
+      "mean_storage_reduc": 0.8943,
+      "detection_rate_pct": 67.65
+    }
+  },
+  "mozilla-beta": {
+    "dataset": "mozilla-beta",
+    "best_alpha": 0.05,
+    "val_tuning_f1": {
+      "0.01": 0.1304,
+      "0.02": 0.1232,
+      "0.03": 0.1349,
+      "0.05": 0.1453,
+      "0.1": 0.1419,
+      "0.15": 0.1388,
+      "0.2": 0.1343,
+      "0.25": 0.1302,
+      "0.3": 0.128,
+      "0.4": 0.1228,
+      "0.5": 0.12
+    },
+    "test_results": {
+      "n_signatures": 1477,
+      "n_with_alerts": 395,
+      "mean_precision": 0.057,
+      "mean_recall": 0.2363,
+      "mean_f1": 0.083,
+      "mean_far": 0.059159,
+      "mean_storage_reduc": 0.8847,
+      "detection_rate_pct": 90.63
+    }
+  }
+}

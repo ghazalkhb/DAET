@@ -1,0 +1,4 @@
+﻿=================================================================
+Running TransformerV2 (per-signature training + batch inference) ...
+=================================================================
+    [TransformerV2] 1/214 | 41s elapsed

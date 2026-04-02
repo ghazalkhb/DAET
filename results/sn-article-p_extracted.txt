@@ -1,0 +1,1752 @@
+  Towards Efficient Performance Debugging: A
+   Dynamic and Adaptive Execution Tracing
+                   Technique
+
+         Mohammed Adib Khan1† , Morteza Noferesti1*† ,
+                   Naser Ezzati-Jivan1†
+1*
+     Computer Science Department, Brock University, 1812 Sir Isaac
+         Brock Way, St. Catharines, L2S-3A1, ON, Canada.
+
+
+  *Corresponding author(s). E-mail(s): mnoferesti@buqaen.ac.ir;
+   Contributing authors: ak19qp@brocku.ca; nezzati@brocku.ca;
+         †
+           These authors contributed equally to this work.
+
+
+                                   Abstract
+Debugging performance issues in software systems is a challenging task that
+requires a deep understanding of the many factors that influence system behavior.
+Traditional methods rely on tools like ftrace, strace, DTrace, or LTTng to ana-
+lyze trace logs from the kernel and user space. However, these approaches have
+their limitations: pre-set tracing often misses critical data because some system
+components aren’t fully observable, while excessive tracing generates unnecessary
+noise, making it harder to pinpoint the real issues. To tackle these challenges,
+this paper introduces a dynamic and adaptive execution tracing technique.
+Our approach uses autoregressive integrated moving average (ARIMA) models
+to predict system and application-level metrics, detecting anomalies by spotting
+deviations from normal trends. It dynamically decides which components to trace
+and when to trace them, ensuring that critical data isn’t missed while keeping
+noise to a minimum. The technique also includes a decision mechanism to balance
+capturing important anomalies and filtering out irrelevant fluctuations, as well
+as a correlation filter to reduce monitoring overhead by eliminating redundant
+traces.
+We evaluated the approach through four detailed case studies, and the results are
+promising. The technique reduced tracing overhead by 27.5% while successfully
+identifying application-level issues, isolating problematic classes and functions,
+and pinpointing kernel-level components that impact performance. It also adapts
+to changes in system behavior, maintaining low overhead and proving to be a
+practical solution for real-world performance analysis.
+
+
+                                        1
+     Furthermore, to motivate and validate the choice of ARIMA as the core
+     forecasting engine, we conducted a large-scale comparative evaluation on 214
+     real-world time-series signatures from the Mozilla Firefox-Android Treeherder
+     telemetry dataset. We compared ARIMA against three alternative change-
+     detection baselines: a naı̈ve Last-Value predictor, a Simple Moving Average
+     (SMA), and an Exponentially Weighted Moving Average (EWMA). Across all
+     key metrics—detection rate, precision, recall, F1 score, false-alarm rate, and
+     compute cost—ARIMA delivered the best practical trade-off. Differences versus
+     SMA in precision and F1 are statistically non-significant, while ARIMA uniquely
+     avoids adapting to recent noise, preserving the core trend-break semantics of the
+     adaptive tracing methodology. This makes it a valuable tool for developers and
+     system administrators looking to optimize system performance efficiently.
+
+     Keywords: kernel tracing, application tracing, execution tracing, performance
+     debugging, application analysis
+
+
+
+
+1 Introduction
+In the dynamic landscape of today’s software development, ensuring the performance,
+reliability, and maintainability of software systems has become increasingly crucial.
+As these systems grow in size and complexity, developers face significant challenges
+in identifying and resolving performance issues and faults [1, 2]. These challenges are
+further made worse by the need to debug and maintain system performance, a central
+concern in both research and production environments [3].
+    Performance bugs are challenging to detect during the testing phase due to two
+key characteristics [4]. First, they are highly dependent on the workload. Since sim-
+ulating all possible workloads during testing is impractical, these bugs often remain
+undetected until the system encounters real-world conditions. Second, the complex-
+ity of the actual environment poses a significant challenge. In real systems, numerous
+services and hardware components interact, making it difficult to pinpoint the root
+cause of performance issues. For example, a faulty hard disk or a cache dependency
+issue can both lead to increased response times. As a result, performance debugging
+becomes essential to monitor system behavior, locate bugs, and assist developers in
+effectively solving them [5].
+    Performance debugging involves two main types of analysis: static and dynamic.
+Static analysis is a debugging method that examines source code without executing
+it [1], while dynamic analysis is performed during runtime [2]. Static analysis often
+provides limited visibility and requires access to the system’s source code, making it
+more restrictive. On the other hand, dynamic analysis techniques, such as tracing and
+logging, offer deeper insights into both the software and the underlying system. By
+capturing detailed logs of execution steps and data flow, these techniques enable more
+effective identification and resolution of performance issues [6].
+    Adaptive execution tracing is a technique that dynamically adjusts tracing config-
+urations in real-time [6, 7]. It employs a decision-making mechanism to automatically
+
+
+
+                                              2
+identify points of interest and adapt the tracing configuration accordingly [5]. The pri-
+mary challenge lies in dynamically and selectively determining which elements, such
+as components, functions, scenarios, or behaviors, or subsystems to trace for potential
+faults or performance issues. By avoiding unnecessary tracing of irrelevant compo-
+nents, adaptive execution tracing reduces system overhead, resulting in a more efficient
+and resource-aware performance debugging.
+     Trend or change detection approaches rely on sequential data, such as execu-
+tion traces, to dynamically adjust tracing configurations in real-time [5, 8]. However,
+these methods face a significant challenge: computer systems are inherently dynamic,
+and their behavior is constantly evolving. For example, consider a web server that
+previously operated at 10% CPU utilization under normal traffic but now consis-
+tently reaches 20% due to increased website popularity. While this change might
+initially seem abnormal, it actually reflects the system’s new normal behavior. As a
+result, adaptive execution tracing methods are designed not only to resolve current
+performance issues but also to handle future and unforeseen conditions effectively.
+     This paper introduces a trend-based adaptive tracing technique, building upon
+our previous work [9], to address the complexities of performance issues in software
+systems. The adaptive decision-making process is driven by autoregressive integrated
+moving average (ARIMA) models, which predict potential performance issues in the
+near future. Based on these predictions, the proposed approach dynamically adjusts
+tracing configurations. By leveraging ARIMA, the proposed technique effectively iden-
+tifies deviations from established metric trends, using trend detection as a powerful
+tool to recognize potential performance issues.
+     The proposed approach is designed to handle both user/application-level and
+system/kernel-level tracing. It employs a decision-making mechanism based on detect-
+ing changes in time-series trends of specific metrics. These metrics encompass
+application-level data, such as function or system call execution time, request pro-
+cessing time, and task critical path time, as well as system-level data, including
+CPU utilization, memory usage, cache performance, and swap file size. In validation
+involving four extensive case studies, the approach demonstrated its effectiveness in
+identifying system-level abnormalities
+
+1.1 Objective
+The primary objective of this work is to design and implement an adaptive trac-
+ing technique capable of anticipating and identifying performance-related issues. This
+technique can be integrated with existing tracing mechanisms to dynamically adjust
+which components are traced. The proposed approach must also adapt to intentional
+system changes and shifts in the system’s normal operating conditions. Furthermore,
+it should autonomously decide when to enable or disable tracing components. These
+objectives will be explored and addressed through the following research questions:
+ RQ1: How can we learn the usage-profile of each applications?
+ RQ2: How can we detect behavior changes on runtime?
+ RQ3: How the detected changes can help in adjusting trace configuration?
+ RQ4: What are the possible actions regarding the detected changes?
+
+
+
+                                           3
+ RQ5: How do we evaluate the trace adjustments?
+
+1.2 Contributions
+In this paper, we present several key contributions to the field of adaptive tracing:
+ A comprehensive framework for selecting and ranking metrics based on their poten-
+  tial impact on system performance, enabling targeted monitoring for effective
+  performance debugging.
+ A statistical method for detecting changes in time-series data of system or
+  application-level metrics, designed to account for environmental changes (e.g.,
+  increased CPU utilization due to higher traffic) that should not be flagged as
+  performance issues.
+ An anomaly score function integrated into the statistical method to balance the
+  trade-off between monitoring anomalies based on their frequency of occurrence.
+  This function filters out rarely occurring anomalies that pose no significant threat,
+  ensuring efficient resource utilization.
+ A correlation filter between system-level metrics, which significantly reduces moni-
+  toring overhead by identifying and eliminating redundant or less impactful traces.
+ A large-scale comparative evaluation of four forecasting strategies (ARIMA, Last-
+  Value, SMA, EWMA) on 214 Mozilla Firefox-Android telemetry time-series,
+  providing empirical justification for the selection of ARIMA as the change-detection
+  engine based on detection accuracy, false-alarm rate, and methodological alignment.
+
+1.3 Outline
+The paper is structured into four sections. Section 2 reviews relevant research in the
+field of adaptive tracing. Section 3 details the proposed methodology for adaptive
+tracing, including metric selection, trend detection, and anomaly scoring. Section 4
+presents four case studies applied to major open-source applications, demonstrating
+the effectiveness of the proposed approach; it further includes a large-scale compar-
+ative study on Mozilla Firefox-Android telemetry data that evaluates and justifies
+the choice of ARIMA over competing forecasting methods. Finally, Section 5 provides
+conclusions, discusses limitations, and outlines directions for future work.
+
+2 Related Works
+This section reviews the literature, organized into three subsections: Software Analysis,
+Clustering, Anomaly and Trend Detection, and Metrics Selection.
+
+2.1 Software Analysis
+Previous work on software analysis can be divided into static and dynamic analysis
+approaches. Static analysis approaches [10, 11] identify performance issues by detect-
+ing anti-patterns in the source-code, such as inefficient loops or wasteful call sequences.
+While static analysis has no runtime impact on live production systems, it often
+
+
+
+                                            4
+generates false positives due to the lack of runtime information, flagging code areas
+unrelated to performance problems [12–14].
+    To address the limitations of static tracing, several solutions have been proposed.
+Mace et al. [15] proposed pivot tracing, which instruments systems without kernel
+modifications. It uses an SQL-like query language to materialize tracepoints in the
+application layer with minimal overhead. However, creating these tracepoints requires
+prior knowledge of the program’s source code, limiting its practicality.
+    Mirgorodskiy et al. [16] introduced self-propelled instrumentation, where an
+autonomous agent is injected into the system in response to user-supplied events and
+propagates through the code via execution flow. However, this approach fails when all
+execution flows halt simultaneously, as in cases of infinite loops, livelocks, or severe
+performance degradation [12].
+    Dynamic runtime analysis approaches [17, 18] monitor runtime program behavior
+to pinpoint the root causes of performance issues. Cantrill et al. [8] introduced dynamic
+tracing (Dtrace), which dynamically modifies the OS kernel to place probes at locations
+of interest only when needed. While dynamic approaches can address specific issues in
+production environments, they introduce runtime overhead [17, 18]. To mitigate this,
+prior studies have proposed performance diagnosis based on low-overhead system-level
+measurements, such as performance-counter events, system calls, free memory, and
+CPU usage [17, 18].
+
+2.2 Clustering, Anomaly, and Trend Detection
+Analyzing system-level metrics provides valuable insights for predicting system faults
+or detecting performance issues. Nguyen et al. [19] used low-level system metrics,
+such as memory usage, CPU usage, and network bandwidth, to detect abnormal fluc-
+tuations. They extracted abnormal change propagation paths and analyzed them to
+identify faulty components, employing online system metrics prediction models to
+distinguish between normal and abnormal behavior.
+    A popular research approach for adaptive tracing or logging involves grouping
+metrics or data and monitoring for anomalies within these groups. For example, Zhang
+et al. [4] used a K-Means density-based algorithm to detect anomalies in performance
+data, emphasizing features requiring finer-grained instrumentation. Similarly, Tate et
+al. [20] employed a cohort intelligence model, feeding it kernel trace data to optimize
+system performance.
+    Ehlers et al. [21] used ARIMA, a time series analysis technique, to detect trends
+in response times and adaptively monitor system performance anomalies. While their
+work shares similarities with ours, our approach extends further by enabling multi-level
+adaptive tracing, whereas they focus solely on application-level tracing and response
+time prediction.
+    Ates et al. [5] proposed Pythia, a real-time workflow-centric tracing framework.
+Pythia operates in a continuous cycle: (1) gathering data and extracting critical path
+skeletons, (2) grouping skeletons based on performance expectations, (3) identifying
+problematic groups (consistently slow or high-variance groups using the coefficient
+of variation, or CoV), and (4) refining expectations and gathering new workflow
+skeletons. This adaptive strategy ensures problematic points are traced as soon as
+
+
+                                           5
+abnormalities are detected. However, Pythia is limited to application-level tracing and
+assumes no problematic groups in the initial run.
+
+2.3 Metrics Selection
+Selecting the right metrics is critical for making informed adaptive tracing decisions.
+Laguna et al. [22] proposed an interesting approach for metrics selection in their work
+on automatic problem localization. They used abnormal and normal trace logs as input
+to a PCA algorithm to reduce dimensionality, removing metrics that do not contribute
+meaningful results, such as constant metrics. The system’s behavior was then modeled
+based on normal and abnormal traces. Metrics from normal behavior with pairwise
+correlations summarized expected behavior, while metrics from abnormal behavior
+were presented to users for fault identification. However, this approach requires signif-
+icant manual effort, making it less feasible for deployment across multiple production
+systems.
+     Munawar et al. [23] proposed a filtering system for system-level metrics based
+on correlation and self-monitoring. They evaluated various selection methods, includ-
+ing random selection, strongest correlation, agglomerative hierarchical clustering, and
+minimum spanning trees (MST). Their findings, based on real data from enterprise
+software systems, showed that MST-based selection using pairwise metric correlations
+outperformed other methods in fault coverage. This research inspired our correlation-
+based filtering method, which reduces unnecessary flagging of metrics due to false
+positives.
+     Dymshits et al. [24] from PayPal observed that the system call count for a process,
+when monitored over time, becomes static unless affected by external factors. This
+observation supports our assumption that a healthy system exhibits stable correlations
+among its system-level metrics unless a change occurs. If system calls show static
+correlations over time, the system resources they use should reflect similar stability.
+     Han et al. [25] from Microsoft proposed StackMine, a reactive approach for debug-
+ging performance bugs by mining call stack trace data. While their method is reactive,
+it introduced a valuable technique for identifying complex functions in call stacks. Part
+of our implementation draws from their approach of calculating function execution
+times from call stacks. They proposed recording call stacks at regular intervals to cre-
+ate a time-series snapshot dataset, which is then analyzed to determine the presence of
+individual functions. We adapted this idea to approximate function execution times by
+tracking when a function disappears from subsequent snapshots. However, the accu-
+racy of this approximation depends on the interval frequency used for recording call
+stacks.
+     Tracing in software systems faces three major challenges: the observer effect caus-
+ing high overhead, excessive irrelevant data or noise disrupting effective diagnosis, and
+the difficulty of deciding when and what to trace [6]. To address these challenges, our
+proposed approach introduces a dynamic and adaptive tracing mechanism that selec-
+tively monitors and logs only the most relevant events. By leveraging trend detection,
+anomaly scoring, and correlation filtering, our solution minimizes overhead, reduces
+noise, and ensures precise tracing decisions. This enables more efficient performance
+debugging and paves the way for advanced adaptive tracing techniques.
+
+
+                                           6
+                Application Run #1                  Application Run #2 Application Run #n
+                          30 ms                               ... ms                       ...ms
+            10 ms         10 ms         10 ms         10 ms            10 ms       10 ms           10 ms
+         Call Stack#1 Call Stack#2 Call Stack#... Call Stack#1 Call Stack#... Call Stack#... Call Stack#...
+
+
+          Function_x Function_f           ...       Function_x          ...          ...            ...
+          Function_y Function_c           ...       Function_y          ...          ...            ...
+             ...        ...               ...          ...              ...          ...            ...
+             ...     Syscall_x            ...          ...              ...          ...            ...
+             ...        ...               ...          ...              ...          ...            ...
+          Function_z Function_z           ...       Function_z          ...          ...            ...
+          Syscall_x Syscall_y             ...       Syscall_x           ...          ...            ...
+
+
+                           Fig. 1: System-wide call stack recording.
+
+
+3 Proposed Adaptive Execution Tracing Technique
+In this section, we present an adaptive execution tracing approach based on detect-
+ing changes in time-series data trends. The approach comprises three key phases for
+application-level tracing: (1) Usage-Profile Learning, (2) Change Detection, and (3)
+Trace Configuration Adjustment. Each phase is detailed in the following subsections.
+
+3.1 Phase #1: Tracing-Function selection
+Accurately tracing an application with a large number of function calls requires select-
+ing a distinct set of functions for each task. To address RQ1RQ1, we introduce the
+Tracing-Function Selection phase, which comprises four key steps.
+
+3.1.1 1- System-wide call stack monitoring
+To identify and record all possible function and system calls for a specific task or
+application usage profile, we employ a monitoring strategy to capture system-wide call
+stacks. A suitable snapshot period is determined based on the application’s charac-
+teristics, such as sensitivity to delay. For instance, a browser application may require
+a snapshot period of 10ms, as delays below this threshold are unlikely to significantly
+impact user experience. The application is then executed under various scenarios and
+loads, ensuring sufficient coverage of tasks and runs. After this preliminary monitoring
+phase, the collected data is analyzed to identify and document all possible function
+and system calls. An example of call stack recording across multiple application runs
+is illustrated in Figure 1.
+
+3.1.2 2- Family-group Identification & Sorting
+A family group, in the context of function and system calls, refers to the hierarchical
+relationships between parent and child calls. A ’parent’ call is a function or system
+call that invokes another call, while a ’child’ call is the one being invoked. Building a
+family-group linkage for all application function calls and system calls is essential for
+understanding the execution flow of a program. This involves creating a structured
+
+
+                                                         7
+                                                       Call Stack Snapshots
+            10ms              20ms              30ms                40ms                50ms              60ms           70ms
+
+          FunctionA()      FunctionA()       FunctionX()         FunctionA()                           FunctionX()   FunctionX()
+                                                                                     FunctionX()
+
+                           FunctionB()       FunctionY()                                               FunctionY()   FunctionY()
+                                                                                     FunctionY()
+          FunctionB()                                            FunctionB()
+                           FunctionC()       FunctionZ()                             FunctionZ()       FunctionZ()   FunctionZ()
+          FunctionC()                                            FunctionC()
+                                             FunctionQ()                             FunctionQ()       FunctionQ()   FunctionQ()
+                           FunctionD()
+
+             Initial Family            Ranked By           Identifying Function Calls    Ranked Family    Selection Of Functions
+              Group List             Number Of Calls           Execution Time           Group List By CoV    After List Cutoff
+              A     B= 2               A    B= 2           A = [ 20ms, 10ms, ... ]             X   Y                 X
+              B     C= 2               B    C= 2           B = [ 20ms, 10ms, ... ]             Y   Z
+                                                           C = [ 20ms, 10ms, ... ]                                   Y
+              C     D= 1               Z    Q= 2                                               Z   Q
+                                                           X = [ 10ms, 30ms, ... ]                                   Z
+              X     Y= 2               X    Y= 2                                               A   B
+                                                           Y = [ 10ms, 30ms, ... ]
+              Y     Z= 2               Y    Z= 2                                               B   C
+                                                           Z = [ 10ms, 30ms, ... ]
+              Z     Q= 2               C    D= 1           Q = [ 10ms, 30ms, ... ]             C   D
+
+
+                        Fig. 2: An example of Family-group Identification.
+
+
+list that maps these relationships, capturing the hierarchy and dependencies within
+the call stack. By establishing this linkage, we can trace the flow of execution, identify
+dependencies, and gain insights into how different parts of the application interact.
+This hierarchical mapping is particularly valuable for debugging, performance analysis,
+and optimizing system behavior, as it provides a clear and organized view of the call
+stack structure.
+    In the context of a snapshot SP , denoted as a set of call stacks SP = {Call −
+Stack i |1 ≤ i ≤ n}, each call stack Call − Stack i = ⟨F a , F b , ..., F d ⟩ represents a
+sequence of function calls during the execution. The term ”family-group” refers to a
+collection of related function calls and system calls that exhibit a parent-child rela-
+tionship. Formally, for a call stack Call − Stack 1 = ⟨F a , F b , F c ⟩, the family-group is
+represented as F amily − Group = {(F a , F b ), (F b , F c )}.
+    To identify family groups, we analyze call stacks individually, counting the fre-
+quency of connections between specific parent and child function calls. For example,
+in Figure 2, the link from function call C to D appears only once across all sampled
+call stacks, indicating a single occurrence in the collected data.
+    Once family groups are identified, the next step is to rank them. This involves
+two sorting functions. First, we sort the groups based on the number of call counts,
+prioritizing functions that appear most frequently. This ensures that functions with
+the highest potential to impact system performance are ranked higher, as even a slight
+increase in their execution time can cause significant degradation. Functions that are
+rarely called are deprioritized, as they are less likely to affect overall performance.
+    However, this raises the question: what if a rarely called function is the culprit? To
+address this, we assume that functions consistently performing poorly have already
+been identified and handled during the testing phase. This research focuses on the
+production phase, where tracing is used to gather data on potential issues that were
+undetected during testing. Tracing provides diagnostic data for problems that cannot
+be recreated in a controlled environment but cannot solve the issues on its own. There-
+fore, it is logical to prioritize monitoring functions with the highest system overhead.
+
+
+
+                                                                      8
+Algorithm 1 Family-group Identification & Sorting
+ 1: F amilyGroupList = [ϕ]
+ 2: F amilyGroupCount = [ϕ]
+ 3: CallStackSnapshots = [CS0 , CS1 , CS2 , ..., CSN ]
+ 4: for each Snapshot ∈ CallStackSnapshots do
+ 5:    Extract all FamilyGroups from Snapshot
+ 6:    E.g., F unctionCallparent .F unctionCallchild
+ 7:    F amilyGroup = [F G1 , F G2 , F G3 , ..., F Gn ]
+ 8:    for each F amily ∈ F amilyGroup do
+ 9:        if F amily ∈/ F amilyGroupList then
+10:            Add F amily to F amilyGroupList
+11:        else
+12:            f amilyindex = Find index of F amily from F amilyGroupList
+13:            F amilyGroupCount[f amilyindex ] = +1
+14: Sort F amilyGroupList based on the values in F amilyGroupCount
+15: return F amilyGroupList
+
+
+
+Algorithm 2 CoV Ranking of Function Calls
+ 1: Given that each snapshot is 10ms
+ 2: F unctionsExecT imeList = [{M C1 [ET1 , ...ETn ]}, ...,
+    {M Cn [ET1 , ..., ETn ]}]
+ 3: CoV List = [ϕ]
+ 4: for each M C ∈ F unctionsExecT imeList do
+ 5:    σ = Calculate Mean Of M C
+ 6:    µ = Calculate Standard Deviation Of M C
+ 7:    CoVM = σµ
+ 8:    Add CoVm to CoV List
+ 9: Sort F unctionsExecT imeList based on the values in CoV List
+10: return F unctionsExecT imeList
+
+
+
+Algorithm 1 outlines the steps for identifying and ranking family groups based on call
+counts.
+
+3.1.3 3- Coefficient Of Variation (CoV) Ranking
+Once family groups are identified and sorted, we rank the function and system calls
+within these groups based on their Coefficient of Variation (CoV) in execution time.
+This prioritizes monitoring of the most volatile or fluctuating calls in the production
+environment. Calls with a higher standard deviation relative to their mean execution
+time are considered riskier, as they are more likely to cause performance fluctuations.
+Algorithm 2 outlines the steps for ranking family groups using parent function calls
+and their CoV values.
+
+
+
+
+                                          9
+3.1.4 4- Function List Cutoff
+To effectively monitor the performance of a large application, it is essential to focus on
+a limited number of functions. The cutoff number should be determined by balancing
+the cost of monitoring with the desired level of detail. For example, monitoring the
+top 5% or the 95th percentile of functions on the list ensures coverage of those most
+likely to impact system performance. The list is already sorted based on family-group
+call counts and the Coefficient of Variation (CoV) of function execution times, priori-
+tizing the most performance-critical functions. However, this phase must be repeated
+regularly to account for changes in the application or operating system, ensuring that
+newly introduced or deprecated functions are included or excluded as needed.
+
+3.1.5 Explanation With An Example
+Figure 2 illustrates the processes involved in the Tracing-Function Selection Phase.
+Using Perf’s record function, we can directly identify the function that initiated a
+call to the next function. In this example, a sampling rate of 10 milliseconds is used.
+The figure shows that FunctionA() called FunctionB() in the first call stack, forming
+a family-group A–B with a count of two, as A called B on two distinct occasions in
+the sample. Although A and B appear in the first two call stack snapshots, we deduce
+(based on [25]) that the second snapshot represents the continuation of the initial call
+from A.
+    Next, we sort all family-groups by their count in descending order, ensuring the
+most impactful groups are ranked highest. To estimate the execution time of Func-
+tionA(), we observe that it appears in the first two call stacks but not the third,
+suggesting an execution time of 20 milliseconds (10ms + 10ms) for the first call. After
+calculating execution times for all functions, we compute their Coefficient of Variation
+(CoV) values to rank them based on their variability. Finally, we determine a cut-
+off by retaining only the top two family-groups, {(X, Y ), (Y, Z )}{(X, Y ), (Y, Z )}. The
+functions in these groups, {X, Y, Z}{X, Y, Z}, are then monitored by the proposed
+approach.
+    It is important to note that while the identified function calls may correlate
+with bugs or performance issues, they are not necessarily the root cause. At this
+stage, we focus on identifying the most fluctuating and latency-contributing func-
+tions, marking them as candidates for runtime monitoring. Our goal is not to detect
+performance issues at this stage or during runtime. Instead, we assume the program
+has already undergone functional and non-functional testing, with any bugs identified
+and resolved. Our objective is to select sufficient candidates for runtime monitor-
+ing to detect significant behavioral changes, which can then inform further trace
+configuration adjustments.
+
+3.2 Phase #2: Change Detection
+In the change detection phase, we employ Autoregressive Integrated Moving Average
+(ARIMA) models [26] for each function and system call in the cutoff sorted list. Each
+model is supplied with time-series data representing the execution times of these func-
+tions and system calls. The ARIMA models predict the expected value at time T based
+
+
+                                           10
+                           Fig. 3: Change Detection Phase
+
+
+on data up to time T−1 . If the actual reading at time T significantly deviates from the
+predicted value—exceeding a predefined threshold determined by the system’s sensi-
+tivity—the isAnomaly flag for the anomalyScore function is set to true; otherwise,
+it is set to false. A substantial mismatch between the actual and predicted readings
+indicates a disruption in the previous trend. If this deviation exceeds the acceptable
+threshold, we infer that the function or system call may be problematic.
+    Figure 3 shows the flow diagram for the change detection phase. The anomalyScore
+function determines the anomaly score, with a higher score corresponding to a higher
+frequency of abnormalities or a lower score for less frequent abnormalities. A threshold
+is established, and if the anomalyScore surpasses this threshold, tracing is enabled
+for the suspected function or system call. Conversely, as the system returns to a
+new normal state and ARIMA predicts along these new levels, the anomalyScore
+decreases. Once it falls below the threshold, tracing for those functions is disabled,
+assuming that the recorded changes have been adequately captured, and further log-
+ging would be unnecessary. Algorithm 3 outlines the steps of the change detection
+phase, encapsulating the proposed adaptive tracing approach.
+    In the Change Detection phase, we rely on two fundamental components: the
+ARIMA model and the anomalyScore function. The following subsections provide a
+detailed examination of each of these components.
+
+3.2.1 Autoregressive Integrated Moving Average (ARIMA)
+Autoregressive Integrated Moving Average (ARIMA) is an algorithm that predicts
+future data values based on trends from past time-series data [26]. Widely used in
+
+
+                                          11
+Algorithm 3 Change Detection Algorithm
+ 1: anomalyScore = [M1 , M2 , M3 , ...Mn ]
+ 2: function Anomaly Score(F unctionID,isAnomaly ,β )
+ 3:     anomalyScore[F unctionID]        =      (β × isAnomaly ) + ((1 − β ) ×
+    anomalyScore[F unctionID])
+ 4: function Predict T(F unctionExecData)
+ 5:     Tp = ARIMA(F unctionExecData)
+ 6:     return Tp
+ 7: function Change Detection(F unctionExecutionT imeDataset,
+    T hresholdarima ,β ,T hresholdanomaly )
+ 8:     F unctionExecData = F unctionExecutionT imeDataset[1 :]
+ 9:     Tactual = F unctionExecutionT imeDataset[0]
+10:     Tpredict = P redict T (M etricData)
+11:     ∆Dif f = |Tactual − Tpredict |
+12:     isAnomaly = F alse
+13:     if ∆Dif f > T hresholdarima then
+14:         isAnomaly = T rue
+15:     else
+16:         isAnomaly = F alse
+17:     Anomaly Score(isAnomaly, β )
+18:     if anomalyScore >= T hresholdanomaly then
+19:         return Anomalous
+20:     else
+21:         return Normal
+22: F unctionExecutionT imeDataset = [{T, ..., T−n }, ..., {...}]
+23: T hresholdarima = X , T hresholdanomaly = Y , β = Z
+24: for each F unctionExecData ∈ F unctionExecutionT imeDataset do
+25:     if Change Detection(F unctionExecData, T hresholdarima ,
+    β, T hresholdanomaly ) ̸= N ormal then
+26:         Enable tracepoint(s) relevant to the problematic function.
+27:     else
+28:         Disable tracepoint(s) relevant to the function.
+
+
+financial markets, ARIMA leverages time-series data and statistical analysis to under-
+stand datasets and forecast future trends [27]. It predicts future values based on prior
+data, making it suitable for applications such as estimating a company’s earnings or
+forecasting stock prices using historical performance and trends.
+    ARIMA combines the features of autoregressive (AR) and moving average (MA)
+models. An AR(1) autoregressive mechanism predicts the current value based on the
+immediately preceding value, while an AR(2) mechanism uses the two previous val-
+ues. Moving averages smooth out anomalies by calculating averages of subsets of the
+dataset. By integrating these techniques, ARIMA models can predict trends, phases,
+periodicity, and other non-static patterns in data [27].
+
+
+
+                                          12
+Why ARIMA?
+We selected ARIMA over other methods for two key reasons. First, ARIMA predicts
+future values based on past trends in data, allowing us to detect when a trend is
+broken. This is indicated by significant deviations between predicted and actual metric
+readings beyond an acceptable threshold. Second, ARIMA identifies all trend changes,
+whether caused by anomalies, attacks, or shifts in system/application workload or
+behavior. In such cases, additional tracing data is required to determine the root cause
+of the unexpected change.
+    Unlike machine learning or deep learning approaches, ARIMA does not adapt
+to new changes but instead relies on past trends for predictions. This ensures the
+method does not learn from recent fluctuations, preserving its ability to detect genuine
+changes in trends. While reinforcement learning could have been a viable alternative,
+as discussed in the literature review, it is impractical to implement in this context.
+Reinforcement learning requires a well-defined reward function, which is not feasible
+here because tracing provides hypotheses—not definitive facts—and requires expert
+analysis of trace logs to perform root cause analysis.
+    Depending on the use of the model, we need to decide the order of the model’s
+elements (AR order, differencing order, MA order). For example, an ARIMA with two
+AR terms would be (2,0,0), MA(2) models are defined as ARIMAs of order (0,0,2),
+and the order of an AR model with first-order difference and a moving average term
+would be (1,1,1).
+
+ARIMA(1,0,1)
+The ARIMA(1,0,1) model consists of an autoregressive process AR(1) and a moving
+average process MA(1) of the first order. There are three parameters in the forecast
+model: a moving average factor θ, an autoregressive factor φ, and a constant term c.
+
+                       x̂t+1 = c + φxt + θεt ,      εt = xt − x̂t
+
+ARIMA(1,1,1)
+The ARIMA(1,1,1) model is a version of the ARIMA(1,0,1) model that is integrated.
+We use first-order differences instead of past values to build the autoregressive model.
+
+                       x̂t+1 = xt + φ∆xt + θεt ,       εt = xt − x̂t
+    To account for linear trends in the data, we propose using the ARIMA(1,1,1)
+model. If the change in trend is non-linear, we assume it indicates a problematic shift
+in the metric’s behavior. For example, if a web server that typically maintains 10%
+CPU usage suddenly spikes to 30% and then 90%, this quadratic change in the trend
+is considered a performance issue. Using a higher-order ARIMA model would risk
+closely predicting such non-linear trends, defeating the purpose of detecting anomalies.
+However, for gradual changes—such as an organic increase in a web server’s popu-
+larity—the ARIMA(1,1,1) model can automatically adjust to predict along the new
+trendline. This justifies our choice of a first-order ARIMA(1,1,1) model.
+
+
+
+                                           13
+                            Fig. 4: A response time graph
+
+
+3.2.2 Anomaly Score
+For our approach to the adaptive tracing problem and to address RQ4, it is essential
+to know the following:
+ When to alert or take action?
+ For how long to keep the alert or action intact?
+ When to stop the alert or revert the action?
+    Here we have an example of a response time graph in Figure. 4. This figure has
+five markers that show a change happening in the graph. Now, we may ask:
+ (a)Do we take action or send an alert at 1, which shows the first jump in response
+  time?
+ (b)Do we set off an alert/action at 2 when we observe some consecutive drops in
+  response time?
+ (c)Do we take action or alert at 3 when the response time has created a new high?
+ (d)Given that we had taken action or set off an alert at 1, 2, or 3, till when do we
+  keep the action or alert active?
+ (e)How should we recalibrate our normal range parameters when we observe a shift
+  in the readings?
+    We know that both setting off an alert for human intervention and taking an
+automatic action is both very costly [28] [29] [6]. So, to answer questions (a), (b), and
+(c), we have to look into how these changes take place. At 1, although it is the first
+abnormal reading to the upside, it makes no sense to take action or set off an alert.
+The justification for this decision is that it is the very first abnormal reading, and it
+is possible that this could have been just a one-time spike that would never be seen
+again, or it is in such a minor frequency of occurrence that it is not worth it to page
+someone for this. It also makes no sense to keep tracking or deploying resources such as
+
+
+
+                                           14
+tracing for components where we might have read just one single anomaly reading. It
+is possible that it could have been a one-time, isolated incident, and we are never to see
+such an anomaly again. This brings us to the importance of frequency of occurrence.
+At 3, we can already see there have been quite several spikes, so it suggests that there
+is a high frequency of reoccurring abnormalities going on. Therefore, it makes sense
+to take action or set off an alert at 3.
+    However, to answer (d), we must have sound logic behind our actions. Once we
+have set off the alert at 3, it can be observed that the response time goes back down
+with a significant change at 4. Although, at 4 we can see the major retrace, just like
+we cannot set off an alert right away when we see the first occurrence of abnormalities;
+similarly, we cannot retrace our alert on the first change back towards the normal
+range. This is because we have yet to confirm if the change back was only a temporary
+retrace or if it is a much more permanent one. To get that confidence of confirmation,
+we would have to wait for more readings in the normal zone. That is why it makes
+much more logical sense to turn off the alert at 5 because at 5 we have a much more
+established reading.
+    To solve this problem, we have employed a function named the anomaly score.
+The anomaly score, inspired by previous work in [21], aims to track the significance
+of anomalous readings obtained from execution time data. It operates by assigning a
+score to a function call’s execution time based on the frequency of anomalous readings.
+The anomaly score increases as the frequency of anomalous readings increases and
+decreases as the frequency of anomalous readings decreases. Here we define anomalous
+reading as execution time which deviated from ARIMA’s prediction beyond the defined
+threshold.
+    The anomaly score function is defined as:
+
+         anomalyScore = (β × isAnomaly ) + ((1 − β ) × anomalyScore)                  (1)
+   Where:
+ β is a decaying factor that controls the rate of rise or fall of the anomaly score and
+  should be set based on the system’s sensitive nature to performance impacts or the
+  tasks it performs. A higher β value results in a faster reaction to an anomaly, and
+  vice versa.
+ isAnomaly is a boolean flag that is either 0 or 1, representing if the reading was
+  anomalous or not.
+    The isAnomaly flag is calculated based on the difference in distance between the
+actual reading of a metric value and the ARIMA predicted value for the same metric.
+If the distance exceeds the defined threshold, the metric is considered anomalous, and
+the anomaly flag is triggered.
+
+3.2.3 RQ2: How can we detect behavior changes on runtime?
+To address RQ2, we assume that a healthy and stable system—one that has not
+undergone any system-level or application-level updates or changes—should maintain
+consistent trends in its system and application-level metric data. This assumption is
+based on the rationale that while specific tasks may cause fluctuations in metric data,
+
+
+                                           15
+              Fig. 5: A sudden upward trend that needs to be traced.
+
+
+the underlying trend should remain stable. For example, if executing a function call
+takes 1 second, executing 10 of the same function calls should ideally take 10 seconds
+(assuming no parallel processing). However, if we observe a sudden change—such as
+a single function call taking 1.5 seconds, then 2 seconds, and so on—this indicates
+a deviation from the expected trend. Such changes may result from increased load
+elsewhere in the system, but they warrant investigation as they impact the optimal
+performance of the application. Figure 5 illustrates a scenario of a sudden upward
+trend that requires tracing.
+    Another reason for focusing on change detection, rather than relying on general
+thresholds or expected value ranges, arises in scenarios like deadlocks. For instance,
+if a server application typically maintains 10-15% CPU usage, a drop below 10%
+might suggest improved optimization and better performance. However, it could also
+indicate a deadlock, where the CPU utilization is constrained because threads are
+stuck waiting. This ambiguity highlights the importance of monitoring and flagging
+changes in trends, not just changes in the data itself. Figure 6 illustrates the areas
+requiring monitoring when a trend shifts downward.
+
+3.3 Phase #3: Trace Configuration Change
+The goal of this phase is to adjust tracing configurations to collect sufficient data for
+the early detection of potential performance issues. The proposed multi-level adaptive
+tracing approach enables modifications to tracing configurations at both the applica-
+tion and system levels. When the change detection phase identifies a trend deviation,
+tracing is initiated for the associated family-groups of the impacted functions, up to
+a pre-set depth limit (e.g., 20 family members).
+    To dynamically adjust tracing configurations based on detected changes, a decision
+mechanism has been implemented. This mechanism relies on two factors: (1) change
+
+
+                                           16
+   Fig. 6: The areas requiring monitoring when a trend changes to the downside.
+
+
+detection through ARIMA models and (2) a pre-determined acceptable threshold for
+deviations from the original trend. This decision mechanism addresses RQ3RQ3 by
+ensuring that tracing configurations are adjusted in response to significant changes,
+enabling proactive performance monitoring.
+    System-level tracing is achieved by controlling tracing components that record
+system-level events and system calls. Similar to the application-level approach, a list
+of system calls made during various loads and stress phases is compiled, sorted, and
+ranked. The execution time for each system call is monitored, and if abnormalities or
+trend changes are detected, a Linux system call table (e.g., [30]) is used to map the
+system call to the corresponding kernel-level component. For example, the system call
+sendmsgsendmsg is handled by the kernel component net/socket.cnet/socket.c, which
+pertains to the network subsystem. By identifying the relevant kernel-level component,
+tracing instruments can be enabled to record events related to that component, such
+as network-related events in this case.
+    At the application level, tracing is adjusted based on the family-groups identified
+during the pre-testing phase. When a trend deviation is detected, tracing is initiated
+for the impacted functions and their associated family-groups, ensuring that sufficient
+data is collected for analysis.
+    The proposed multi-level adaptive tracing mechanism adaptively handles both sys-
+tem and application-level tracing, offering a comprehensive approach to performance
+monitoring and optimization. By adjusting tracing configurations, this phase aims to
+collect sufficient data for early detection of potential performance issues, helping devel-
+opers and system administrators identify problems related to configuration, resource
+failures, resource contention, and internal code bugs.
+
+
+
+
+                                            17
+4 Evaluation & Discussion
+This section evaluates our proposed approach through real-world examples, demon-
+strating its effectiveness in adaptive tracing, change detection, and multi-level tracing.
+The use cases include detecting trend changes in system-level metrics to reduce
+tracing overhead (Use Case 1), identifying hardware driver and application communi-
+cation issues (Use Case 2), pinpointing performance-degrading function calls or classes
+(Use Case 3), and monitoring system-call execution times to adaptively configure
+system-level tracing (Use Case 4).
+
+4.1 Use Case #1
+This case study demonstrates how our proposed adaptive tracing approach detects
+trend changes in system-level metrics. By detecting these changes, our approach
+enables selective tracing of relevant components, determines the optimal time snap-
+shots for initiating tracing, and decides how long to trace, thereby reducing overhead
+and improving efficiency.
+
+4.1.1 Data Collection
+We created a PHP script served by an Apache server that randomly loads a large
+plain text file and echoes it back. The script was designed to trigger this operation
+with a 30% probability, alongside random prime number generation to impose CPU
+load. Over time, the number of concurrent requests was increased five times, starting
+from 2 and incrementing by 2 each time.
+    We recorded 35 system-level metrics, as shown in Table 1, using nmon, a Linux
+performance monitoring tool available under the GNU General Public License [31].
+These metrics are grouped into four major categories: (i) CPU, (ii) Memory, (iii) Disk,
+and (iv) Network.
+    Snapshot data was recorded every 1 second by setting the ss parameter of nmon
+to 1. The following command was used:
+
+                                nmon − f − s1 − c3600
+
+Here, the f parameter directs nmon to save the data in the current directory instead of
+displaying it in the terminal. The process was run for 1 hour. The recorded time-series
+data was then fed into ARIMA models.
+    Some key parameters to note include a thresholdarima of 3% for both upward
+and downward deviations. If the difference between the predicted and actual values
+exceeds 3%, the reading is flagged as an anomaly. For the anomalyScore function, we
+set β = 0.3 and thresholdanomaly = 0.3 for this experiment. Our findings indicate that
+a β value lower than 0.3 introduces significant decision-making lag. Conversely, a β
+value higher than 0.3 causes the anomaly score to rise sharply, crossing the threshold
+too quickly even for low-frequency anomalies. This occurs because the anomaly score
+accumulates rapidly with each occurrence, leading to overly sensitive detection.
+
+
+
+
+                                           18
+ Category     Metrics                   Description
+              CPU User%                 CPU time in user mode.
+              CPU Sys%                  CPU time in kernel mode.
+              CPU Wait%                 CPU time waited for I/O.
+ CPU          CPU Idle%                 CPU time were idle.
+              PROC Runnable             Runnable processes in the run queue.
+              PROC pswitch              Number of process context switches.
+              PROC fork                 Number of fork system calls.
+              MEM memfree               Total free RAM.
+              MEM memshared             Memory cache across applications.
+              MEM cached                In-memory cache for files.
+              MEM active                Memory used by processes.
+              MEM buffers               Temporary storage used for disk blocks.
+              MEM inactive              Pages accessed recently.
+              VM nr dirty               Pages waiting to be written.
+ Memory
+              VM nr mapped              Number of memory mapped pages.
+              VM nr slab reclaimable    Pages from the kernel slab memory.
+              VM pgpgin                 Number of pages brought in from disk.
+              VM pgpgout                Number of pages written out to disk.
+              VM pgfree                 Number of pages free since the last boot.
+              VM pgactivate             Number of page activations since the last boot.
+              VM pgfault                Minor faults since the last boot.
+              DISKBSIZE sda             Number of disk blocks are read and written.
+              NET enp0s3-read-KB/s      Data in KB is received on the interface.
+              NET enp0s3-write-KB/s     Data in KB is sent on the interface.
+                          Table 1: Selected Nmon Metrics.
+
+
+
+4.1.2 Change Detection With ARIMA
+Figure 7 shows the cumulative number of metrics flagged and unflagged by our pro-
+posed approach at any given time, while Figure 8 provides a categorized cumulative
+view of the same data. From Figure 8, we observe five prominent humps in CPU-
+related metrics initially. Over time, these humps flattened out, demonstrating that our
+proposed approach can adapt to a system’s new normal. As we increased the number
+of concurrent requests fivefold, CPU utilization also rose. However, once the increases
+stabilized, ARIMA adjusted its predictions for CPU-related metrics to align with the
+new trend. This reduced the discrepancies between ARIMA’s predictions and actual
+readings, resulting in fewer CPU-related metrics being flagged as the system adapted
+to its new normal.
+    The total of 21 metrics were flagged by ARIMA, as shown in Table 2. It is impor-
+tant to note that not all metrics were flagged simultaneously or remained flagged for
+the same duration. To understand how each metric was handled, we analyzed their
+individual data in detail.
+    Figure 9 shows the CPU-related metrics that were recorded during the experiment.
+ARIM AF lagged represents the timestamps where the thresholdarima was triggered,
+and ARIM AT akeAction areas to represent where it was suggested to enable tracing
+for the metric’s related component(s). Most of the ARIMA prediction figures show a
+
+
+
+                                          19
+      Fig. 7: ARIMA Flagged Metrics Cumulative Summary — Case Study: 1
+
+
+
+
+     Fig. 8: ARIMA Flagged Metrics Categorized Summary — Case Study: 1
+
+
+lag. However, the figures with the least number of ARIMA flags (i.e., detected as an
+anomaly) have the shortest lag. The reason for this is that ARIMA predicts along a
+past trend. If the trend is not broken, then predicting along the trend will not result
+in a lag compared to the actual reading.
+    Figure 9b shows that for CPU User%, there have been four zones where it
+was advised to enable relevant tracing elements. We can also see that most of the
+major changes were correctly detected. Similar results were observed in Figure 9d
+for CPU Sys%. If we look into the setup of data generation, then the advised areas
+make sense because we had gradually increased concurrent requests five times. For
+CPU Idle%, we can see in Figure 9f that it was advised to trace related components for
+a small portion of time. While we check the same time snapshot area on CPU User%,
+it shows a drastic spike. On the other hand, for PROC Runnable, we observe three
+areas where it was flagged in Figure 9h. This aligns with the 30% probability of load-
+ing a large text file and echoing it back. The total area being flagged also represents
+30% of the total time snapshots. For PROC pswitch, almost half of the total time
+snapshots were flagged. However, what is interesting to observe in Figure 9j is that it
+wasn’t flagged until almost the first half of the experiment. It is safe to assume that
+the number of instructions was raised drastically once the prime numbers and load-
+ing of the large text file were hit with a higher number of concurrent requests. As
+the number of concurrent requests was low during the first half, it makes sense that
+
+
+                                          20
+                        Category    Flagged Metrics
+                                    CPU User%
+                                    CPU Sys%
+                        CPU         CPU Idle%
+                                    PROC Runnable
+                                    PROC pswitch
+                                    VM nr dirty
+                                    VM pgpgout
+                        Memory
+                                    VM pgfree
+                                    VM pgfault
+                                    DISKBSIZE sda
+                                    DISKBSIZE sda5
+                                    DISKBUSY sda
+                                    DISKBUSY sda5
+                        Disk
+                                    DISKWRITE sda
+                                    DISKWRITE sda5
+                                    DISKXFER sda
+                                    DISKXFER sda5
+                                    NET enp0s3-read-KB/s
+                                    NET enp0s3-write-KB/s
+                        Network
+                                    NETPACKET enp0s3-read/s
+                                    NETPACKET enp0s3-write/s
+                      Table 2: ARIMA Flagged Metrics —
+                      Case Study: 1
+
+
+
+pswitch was not overloaded; however, with a higher number of concurrent requests,
+the chance to trigger that 30% probability in a given time also increased. Therefore,
+the pswitch value fluctuated a lot at a lower scale which may not be visible in the
+chart but can be observed through the high number of ARIMA flags.
+    Figure 10 shows the memory-related metrics that were flagged during this experi-
+ment. VM nr dirty metric has seen many trend changes in Figure 10b. If we observe the
+ARIMA flags and the take-action areas suggested by our proposed approach, it is obvi-
+ous that this metric was the most problematic out of all the 21 metrics. VM pageout
+has seen some large spikes, as seen in Figure 10d. However, as the frequency of the
+spikes was relatively low (just 3%); therefore we could see this metric was not flagged
+as much. VM pgfree and VM pgfault have seen a similar number of flags and action-
+taking suggestions. Overall, from the memory-related metrics, we can observe that
+VM nr dirty was affected the most. This is in line with the tasks that were performed
+in the experiment, as the number of prime numbers generated was increasing every
+time; therefore apache cache for that webpage (the PHP script) had to be modified
+all the time, which affected the system performance in serving back the page.
+    For disk-related metrics, we had two different partitions: sda and sda5. Figure 11
+shows the metrics for the sda partition. For DISKBSIZE, we can see that ARIMA had
+been flagging for a while on the lower spikes and building up the anomaly score enough
+to trigger an action to be taken in the last quarter of the experiment. For DISKBUSY,
+however, we noticed the anomaly score was triggered much earlier. Meanwhile, for
+DISKWRITE and DISKXFER, we can see little to no flagged area. DISKXFER have
+seen three major spikes, but the distance between them was too big for the anomaly
+
+
+                                          21
+(a) CPU User% — ARIMA (b) CPU User% — Adaptive (c) CPU Sys% — ARIMA
+Prediction            Decision                 Prediction
+
+
+
+
+(d) CPU Sys% — Adaptive (e) CPU Idle% — ARIMA (f) CPU Idle% — Adaptive
+Decision                Prediction            Decision
+
+
+
+
+(g) PROC Runnable         — (h)  PROC Runnable           — (i) PROC pswitch — ARIMA
+ARIMA Prediction            Adaptive Decision              Prediction
+
+
+
+
+                              (j) PROC pswitch — Adap-
+                              tive Decision
+
+                        Fig. 9: CPU Metrics — Case Study: 1
+
+
+score to reach its threshold. Figure 12 shows the disk-related metrics for partition sda5.
+In sda5, we see similar properties as seen in sda. However, DISKBUSY for sda5 broke
+its trend much earlier than sda; therefore, we could see it got flagged much earlier as
+well.
+    Figure 13 shows the network-related metrics of the system. We had only one active
+and enabled network interface named enp0s3. The network-related metrics could be
+categorized into NET and NETPACKET. The differences between them are that NET
+metrics show the overall usage in terms of read and write in KB/s, while NETPACKET
+metrics show the overall usage in terms of read and write but in the number of packets
+per second. From Figure 13b and 13d, we can see that both read and write for NET
+
+
+                                           22
+(a) VM nr dirty — ARIMA (b) VM nr dirty — Adaptive (c) VM pageout — ARIMA
+Prediction              Decision                   Prediction
+
+
+
+
+(d) VM pageout — Adaptive (e) VM pgfree — ARIMA (f) VM pgfree — Adaptive
+Decision                  Prediction            Decision
+
+
+
+
+   (g) VM pgfault — ARIMA Prediction           (h) VM pgfault — Adaptive Decision
+
+                     Fig. 10: Memory Metrics — Case Study: 1
+
+
+metrics were flagged at around the same timing; however, with a small amount of lag
+on NET writes. This is justifiable because the requests were sent first, followed by the
+echoing back of the large text from the text file and the prime numbers. Therefore,
+the write is supposed to see its pressure buildup later than the read. Like NET, the
+NETPACKET’s read and write also sees the same pattern as when it first suggested
+taking action by our proposed approach for adaptive tracing. However, in general, we
+can see that for both NET and NETPACKET, the write had more time snapshot
+areas marked for taking action, which is in line with the experiment as whenever that
+30% probability was hit to echo out the large text file, the write metrics would see a
+sudden break of past trend in data being sent out through the network interface.
+
+4.1.3 Overhead
+For evaluating the performance of our approach in this case study, we focus on two
+key aspects: runtime overhead and the effectiveness of metric selection. Since ARIMA
+models can be executed on a separate machine, the primary overhead on the produc-
+tion system comes from nmon’s CPU utilization. To quantify the runtime overhead,
+
+
+                                          23
+(a) DISKBSIZE sda        — (b)   DISKBSIZE sda          — (c) DISKBUSY sda            —
+ARIMA Prediction           Adaptive Decision              ARIMA Prediction
+
+
+
+
+(d) DISKBUSY sda — Adap- (e) DISKWRITE sda              — (f) DISKWRITE sda           —
+tive Decision            ARIMA Prediction                 Adaptive Decision
+
+
+
+
+ (g) DISKXFER sda — ARIMA Prediction           (h) DISKXFER sda — Adaptive Decision
+
+              Fig. 11: Disk Metrics For Partition Sda— Case Study: 1
+
+
+we compared CPU utilization snapshots in two distinct settings. In the first setting,
+nmon was run alongside the Apache server while serving requests. In the second set-
+ting, nmon was executed while ignoring metrics discarded during the preliminary
+monitoring phase, using the same benchmark for both configurations.
+    Figure 14 shows the chart of CPU utilization with and without nmon recording
+metrics in the background. It is noted that during this stage, nmon monitored all
+possible metrics supported by nmon with a sampling rate of 1 second. The overall
+overhead was observed to be an average of 6.8% compared to the baseline. However, the
+baseline itself had a maximum CPU utilization of 9%. Note that the CPU utilization
+for nmon remains static unless the sampling rate changes. Therefore, it is safe to
+assume that the overhead for nmon would drastically reduce with a higher baseline
+CPU utilization. Our findings show that nmon added only an additional 0.3% CPU
+utilization on average, with the maximum being 0.7% and the lowest being very close
+to 0%.
+    Figure 15 shows the comparison of overhead between the base model of nmon with
+all metrics being recorded against nmon with selective metrics set after the preliminary
+monitoring stage. While comparing against the base model, we can observe that the
+
+
+                                          24
+(a) DISKBSIZE sda5        — (b) DISKBSIZE sda5          — (c) DISKBUSY sda5           —
+ARIMA Prediction            Adaptive Decision             ARIMA Prediction
+
+
+
+
+(d)  DISKBUSY sda5        — (e) DISKWRITE sda5          — (f) DISKWRITE sda5          —
+Adaptive Decision           ARIMA Prediction              Adaptive Decision
+
+
+
+
+(g) DISKXFER sda5 — ARIMA Prediction         (h) DISKXFER sda5 — Adaptive Decision
+
+             Fig. 12: Disk Metrics For Partition Sda5 — Case Study: 1
+
+
+selective metrics model has an average of 4.3% overhead reduction with respect to
+the whole system’s utilization. Further analyzing the CPU utilization, we can observe
+that the selective metrics model saves an average of 0.2% CPU utilization compared
+to the base model. This 0.2% reduction is a 66% overhead improvement if compared
+against the 0.3% average CPU utilization of the base model alone.
+
+4.2 Case Study #2
+This case study was performed on the Firefox web browser, a complex multi-threaded
+application. The case study was an analysis from a Bugzilla report [32], which stated
+that Firefox takes a long time loading larger PDF files even if it is locally stored. The
+report mentioned that Firefox gets stuck for a while at a function call responsible for
+handling the graphic driver. The mentioned function call is related to VSync, which
+synchronizes the refresh rate between the monitor screen and the graphic processor.
+Therefore, it was concluded that Firefox has an issue with the function-call responsible
+for calling the driver for VSync.
+
+
+
+
+                                           25
+(a) NET-read-KB/s         — (b) NET-read-KB/s — Adap- (c) NET-write-KB/s              —
+ARIMA Prediction            tive Decision             ARIMA Prediction
+
+
+
+
+(d)   NET-write-KB/s      — (e) NETPACKET-read/s — (f) NETPACKET-read/s —
+Adaptive Decision           ARIMA Prediction       Adaptive Decision
+
+
+
+
+(g) NETPACKET-write/s — ARIMA Predic- (h) NETPACKET-write/s — Adaptive Deci-
+tion                                  sion
+
+          Fig. 13: Network Metrics For Interface Enp0s3 — Case Study: 1
+
+
+4.2.1 Data Collection
+To create the tracing profile, we have selected a 50 MB PDF file and a 500kb PDF file.
+Next, Firefox was built from source by enabling the perf flag so that JIT can be profiled
+by following the instructions from Mozilla’s documentation on Firefox [33]. Firefox
+was continuously loaded with the larger and smaller PDFs in various combinations to
+explore all possible function calls and system calls for loading PDFs in Firefox. This
+load and stress test was carried out for 20 minutes. Once the Firefox build is ready,
+we used perf for recording the call stacks as explained in section 3.1 to build up the
+tracing profile.
+   Next, the family-groups of the functions and system calls were identified and sorted
+based on the priority of importance as explained in Algorithm 1. For calculating the
+execution time of the function calls, we have used a split of ten-millisecond snapshots
+while recording call stacks with perf. The ten milliseconds were used as the time
+snapshot. Once the execution time for each function and system calls were found, we
+then passed those values into Algorithm 2 to get them ranked. For our experiment,
+
+
+
+                                           26
+                  Fig. 14: Overhead Analysis of Case Study 1.
+
+
+
+
+Fig. 15: Evaluation — Overhead Comparison With Selective Metrics — Case Study:
+1
+
+
+
+                                      27
+ (a) Execution Time & ARIMA Prediction         (b) Adaptive Decision For Tracepoint
+
+   Fig. 16: Function Call Execution Time & Adaptive Tracing — Case Study: 2
+
+
+we used a functions and system calls list cutoff value of 5% of the total number of
+function and system calls discovered.
+    We found a total of 8,231 unique family-groups for both function and system calls
+combined. The selected list had a total of 410 function and system calls. Selecting
+5% of the functions to be monitored may sound like a lot of important data may be
+missed. However, it must be reminded again that as explained in section 3.1.4 that
+we have already concluded that consistently worst-performing functions have already
+been handled in the testing phase, as well as the list has been sorted based on the
+number of calls (i.e., the importance of the function compared to the overall system),
+followed by CoV ranking. Therefore, we are already following the most important
+family-groups, which can cause the highest performance problems.
+
+4.2.2 Change Detection
+Following the Bugzilla report [32], we have identified the culprit function ”mozilla ::
+V syncRef reshDriverT imer :: RunRef reshDrivers” which caused the delay. The
+culprit function had a ranking of 14 on the list. Firefox used this function call to
+maintain synchronization between the frame refresh rate of the monitor and Firefox
+itself to minimize tearing effects when the PDF is scrolled. We successfully identified
+the problematic function call out of eight thousand function calls by following only
+four hundred function calls which is a huge overhead reduction compared to tracing
+all the functions.
+    However, our approach further reduces the overhead by not only specifying which
+function to trace but also by adaptively deciding when to trace the functions. There-
+fore, not only did it save overhead from tracing all the functions, but it also saved
+system resources from selectively tracing the functions only when needed. Figure 16a
+shows the execution time of the culprit function and its ARIMA predictions. Figure
+16b shows the adaptive decisions made on the tracepoint for the culprit function. It
+clearly shows that there were moments when the execution time for the function took
+a lot more than 10ms. While loading the smaller PDF, the average time for this func-
+tion’s execution remained well below 20 milliseconds. However, from Figure 16a, we
+can observe that there were moments with well over 500 millisecond execution time
+for this function.
+
+
+
+                                          28
+ Evaluation Criteria                                                              Values
+ Was The Bug Detected?                                                              Yes
+ Culprit Function                                           mozilla::VsyncRefreshDriverTimer::RunRefreshDrivers
+ Useful Unique Changes Detected                                                      22
+ Samples Recorded                                                                    56
+ Monitoring Overhead Reduced By CoV Ranking                                         95%
+ Storage Overhead Reduced By ARIMA For Culprit Tracepoint                           44%
+
+Table 3: Evaluation — Issue: Driver Communication Between Hardware & Applica-
+tion — 100 Samples — Case Study: 2
+
+
+
+                   Parameters                                                      Values
+                   Total Unique Function Family-groups Detected                     15934
+                   List Cutoff Percent                                               5%
+                   Number Of Functions In The List To Track                          797
+                   Minimum Samples Recorded For Each Function Calls                  100
+                   Table 4: Data Collection Summary — Case Study: 3
+
+
+
+4.2.3 Evaluation
+In order to evaluate this case study, looking into the usefulness of the metric selection
+is optional as the function itself is the performance issue culprit and being able to
+pick up the culprit function from a list of eight thousand function calls itself shows
+the usefulness of the proposed approach. Processing overhead calculation for this case
+study is very relative to how the application will be used in an actual use case scenario.
+Since it takes as little as 158 nanoseconds to materialize an LTTng tracepoint, [34];
+therefore, the overhead for 410 tracepoints is very negligible. However, the overhead
+for storing the trace data is more concerning than materializing the tracepoint itself.
+Table 3 shows the evaluation criteria and the overhead being saved through the use
+of the proposed approach for adaptive tracing.
+
+4.3 Case Study #3
+This case study was also performed on the Firefox web browser. The case study is an
+analysis from a Bugzilla report [35], which stated that Firefox is extremely slow with
+3D transformation rendering. The report mentioned that the culprit class responsible
+for this performance issue is ”W ebRenderCommandBuilder.”
+
+4.3.1 Data Collection
+The deployed data collection approach was the same as section 4.2.1 of case study
+#2. The difference was how the stress test profile was created. For this case study,
+we have used [36], [37] and different custom-made types of 3D CSS animations. These
+animations were loaded in multiple sequences and combinations to trigger all related
+function calls so we could record them using perf. The learning phase of the tracing
+profile lasted 15 minutes, enough to generate all the required data. Table 4 shows the
+summary of the data collection phase of this case study.
+
+
+                                                     29
+ Parameters                                                                           Values
+ Purpose                                                          Detect Specific Class File Responsible For Bug
+ Was The Bug Successfully Detected?                                                     Yes
+ Culprit Function                                                  CreateWebRenderCommandsFromDisplayList
+ Function Rank In the Cutoff List                                                        6
+ Culprit Class                                     mozilla::layers::WebRenderCommandBuilder::WebRenderCommandBuilder
+ Is Detected Class In Line With Bugzilla Report?                                   Exact Match
+ Monitoring Overhead Reduced By CoV Ranking                                             95%
+
+Table 5: Evaluation — Issue: Extremely Slow 3D Transformation Rendering With
+Firefox — Case Study: 3
+
+
+
+4.3.2 Evaluation
+The purpose of this case study was to demonstrate if our proposed approach can
+pinpoint specific classes which cause performance issues. The overhead will remain
+the same for this experiment as case study #2 because the application that is being
+profiled and traced and the methodology are the same as that of case study #2. Table
+5 shows evaluation metrics and their results for this case study.
+    Our proposed approach successfully captured the culprit function call and found
+the class name of the function call from the call stack. It was an exact match to that
+of the Bugzilla report.
+
+4.4 Case Study #4
+This case study is another experiment on the Firefox web browser. The case study
+was an analysis from a Bugzilla report [38], which stated that Firefox’s initial startup
+becomes very slow if there is a DNS issue. Although it was stated that the issue was
+caused by DNS failing to resolve something in the backend, causing the startup to
+be slow, this can be recreated by having any sort of network connectivity issue, too,
+because in that way, DNS would also fail to resolve whatever is causing the lag at the
+startup.
+    The purpose of this case study is to demonstrate the capability of proposed
+approach’s multi-level adaptive tracing. In this experiment, we have demonstrated
+how the proposed approach can figure out hardware-level issues by following system
+calls from the call stack.
+
+4.4.1 Data Collection
+For this experiment, the data collection method followed the same instructions of case
+study #2. The difference was in the learning phase of the tracing profile creation
+method. The learning phase was carried out by opening Firefox numerous times by
+having the system’s DNS server changed between the combination of Google’s DNS,
+a random invalid DNS and having the network connectivity disconnected from time
+to time. Perf was used for recording the call stacks, which record function calls and
+system calls. The learning phase of the tracing profile lasted 15 minutes, enough to
+generate all the required data. Table 6 shows the summary of the data collection phase
+of this case study.
+
+
+
+                                                           30
+                 Parameters                                                Values
+                 Total Unique Function Family-groups Detected               5764
+                 List Cutoff Percent                                         5%
+                 Number Of Functions In The List To Track                   289
+                 Minimum Samples Recorded For Each Function Calls           100
+                  Table 6: Data Collection Summary — Case Study: 4
+
+
+
+ Parameters                                                                  Values
+ Purpose                                                      Detect System Call Responsible For Bug
+ Was The Bug Successfully Detected?                                            Yes
+ Culprit System Call                                                        sys sendmsg
+ Function Rank In the Cutoff List                                              236
+ Kernel Component Responsible For The System Call                          net/socket.c
+ Is Detected Kernel Component In Line With Bugzilla Report?                Exact Match
+ Monitoring Overhead Reduced By CoV Ranking                                    95%
+Table 7: Evaluation — Issue: Slow Startup Of Firefox If Network Connectivity Issue
+Exists— Case Study: 4
+
+
+
+4.4.2 Evaluation
+The overhead will remain the same for this experiment as case study #2 because the
+application being profiled and traced, and the methodology is the same as that of case
+study #2. Table 7 shows evaluation metrics and their results for this case study.
+    As mentioned in Table 7, the culprit system call, sendmsg could be looked up in
+a Linux system call table [30] to find out the kernel component of that system call.
+Looking up the sendmsg system call from the table, we can find that net/socket.c
+handles that system call. This component is solely responsible for all network-related
+tasks in a Linux system. Therefore, we could use this information to trace network-
+related events adaptively. As a result, this case study has successfully demonstrated
+that we can perform multi-level (system and application level) adaptive tracing with
+our proposed approach.
+
+4.5 Large-Scale Comparative Evaluation: Mozilla
+    Firefox-Android Telemetry
+While the four case studies above demonstrate the qualitative effectiveness of the pro-
+posed approach on controlled benchmarks, this section provides large-scale empirical
+evidence on a real-world production dataset and quantitatively justifies the choice
+of ARIMA as the forecasting engine within the change-detection framework. We
+evaluated four forecasting strategies—ARIMA, Last-Value (LAST), Simple Moving
+Average (SMA), and Exponentially Weighted Moving Average (EWMA)—using the
+same Algorithm 3 controller, varying only the one-step-ahead predictor.
+
+
+
+
+                                                 31
+                        Metric                              Value
+                        Total alert records                 17,989
+                        Regression alert records            7,612
+                        Unique regression signatures        3,764
+                        Time-series CSV files available      342
+                        Signatures matched to time-series    214
+                        Vectors converted and used           214
+                       Table 8: Mozilla Firefox-Android Tree-
+                       herder dataset statistics.
+
+
+
+                    Parameter                   Symbol        Value
+                    Exponential weight          β               0.3
+                    Detection threshold         θanomaly        0.3
+                    Dynamic threshold scale     kσ              3.0
+                    Dynamic threshold window    wthr             30
+                    ARIMA order (p, d, q)       —             (1, 1, 1)
+                    ARIMA rolling window        wARIMA           60
+                    SMA window                  wSMA             20
+                    EWMA smoothing              α               0.3
+                    Alert matching tolerance    τ           ±5 pushes
+                    Train/test split            —           70% / 30%
+                  Table 9: Shared Algorithm 3 parameters for the
+                  Mozilla comparative evaluation.
+
+
+
+4.5.1 Dataset
+The evaluation uses the Mozilla Firefox-Android Treeherder telemetry dataset.
+Treeherder is Mozilla’s continuous-integration monitoring platform, which collects
+automated performance regression alerts for each Firefox-Android build pushed to the
+repository. Table 8 summarises the dataset statistics.
+    Each time series corresponds to a unique (platform, suite, test ) signature and con-
+tains normalised performance measurements collected over consecutive build pushes.
+Ground-truth anomalies are the regression alerts generated by Mozilla’s existing alert
+system.
+
+4.5.2 Experimental Setup
+All four methods are wrapped inside the same Algorithm 3 controller. The shared
+parameters are listed in Table 9. Each time series is split chronologically: the first
+70% of data points form the training set used for ARIMA parameter estimation
+and dynamic-threshold seeding; all detection decisions and evaluation metrics are
+computed exclusively on the remaining 30% test set, preventing data leakage.
+
+
+
+
+                                           32
+ Method    Det. Rate (%)   Precision     Recall      F1      FAR     Runtime (s)   Mem (KB)
+ ARIMA         88.67        0.1056       0.6059    0.1736   0.0528      807.1        1422.6
+ LAST           72.67       0.0793       0.4844    0.1330   0.0523      23.8          83.8
+ SMA            96.00       0.1116       0.6573    0.1855   0.0519      29.8          90.3
+ EWMA           82.67       0.0902       0.5615    0.1506   0.0558      23.7          83.9
+Table 10: Aggregate evaluation results across 214 Mozilla Firefox-Android signatures.
+FAR = false-alarm rate. Bold indicates the best value per column.
+
+
+
+ Pair                     Precision            Recall                F1              FAR
+ ARIMA vs. LAST         sig. (p<0.001)     sig. (p<0.001)     sig. (p<0.001)       not sig.
+ ARIMA vs. SMA              not sig.       sig. (p<0.001)         not sig.         not sig.
+ ARIMA vs. EWMA         sig. (p<0.001)      sig. (p<0.01)     sig. (p<0.001)   sig. (p<0.001)
+ LAST vs. SMA           sig. (p<0.001)     sig. (p<0.001)     sig. (p<0.001)       not sig.
+ LAST vs. EWMA           sig. (p<0.05)     sig. (p<0.001)      sig. (p<0.01)    sig. (p<0.05)
+ SMA vs. EWMA           sig. (p<0.001)     sig. (p<0.001)     sig. (p<0.001)   sig. (p<0.001)
+Table 11: Pairwise Wilcoxon signed-rank test results (n=214 signatures, α=0.05).
+“sig.” = statistically significant difference; “not sig.” = no significant difference.
+
+
+
+Evaluation metrics.
+For each signature, the test-set decisions are matched against the ground-truth alert
+timestamps (within the tolerance τ ). We report: (i) detection rate (% of alerted sig-
+natures for which at least one alert is correctly detected), (ii) precision (fraction of
+flagged intervals that contain a true alert), (iii) recall (fraction of true alerts that are
+flagged), (iv) F1 score, (v) false-alarm rate (FP intervals per test time step), (vi) total
+runtime, and (vii) peak memory usage.
+
+4.5.3 Comparative Results
+Table 10 reports the aggregate evaluation metrics across all 214 signatures.
+
+4.5.4 Statistical Significance
+We assessed the reliability of the reported differences using two complementary
+tests applied across all 214 per-signature metric samples. Percentile bootstrap 95%
+confidence intervals (10,000 resamples) confirm that all four methods produce well-
+separated point estimates. Pairwise Wilcoxon signed-rank tests further quantify
+significance at α = 0.05. Key results are summarised in Table 11.
+
+4.5.5 Ablation Study
+To assess the robustness of the reported results we systematically varied key
+hyperparameters while keeping all others fixed at their defaults.
+
+
+
+
+                                              33
+           ARIMA                LAST                SMA                EWMA
+  β        P    F1            P     F1            P    F1             P    F1
+ 0.1     0.173 0.183        0.016 0.017         0.385 0.410         0.039 0.040
+ 0.2     0.204 0.266        0.032 0.048         0.269 0.339         0.156 0.207
+ 0.3     0.086 0.144        0.064 0.109         0.092 0.155         0.073 0.124
+ 0.5     0.086 0.144        0.063 0.108         0.093 0.156         0.070 0.119
+ 0.7     0.082 0.137        0.062 0.107         0.092 0.153         0.069 0.116
+Table 12: Ablation on smoothing factor β (P = mean precision, F1 = mean F1 score;
+τ =5, θ=0.3).
+
+
+
+            ARIMA                LAST                SMA               EWMA
+   θ        P    F1            P     F1            P    F1            P    F1
+ 0.10     0.097 0.162        0.086 0.147         0.095 0.161        0.087 0.149
+ 0.15     0.097 0.162        0.069 0.120         0.095 0.160        0.089 0.151
+ 0.20     0.095 0.160        0.065 0.111         0.095 0.159        0.087 0.148
+ 0.30     0.086 0.145        0.064 0.109         0.092 0.155        0.073 0.124
+ 0.40     0.214 0.272        0.032 0.046         0.272 0.342        0.154 0.201
+ 0.50     0.227 0.270        0.025 0.036         0.301 0.355        0.182 0.215
+Table 13: Ablation on detection threshold θ (P = mean precision, F1 = mean F1
+score; τ =5, β =0.3).
+
+
+
+Smoothing factor β.
+Table 12 shows F1 and precision as β varies. At β =0.2, ARIMA achieves the highest
+F1 of 0.266, reflecting a faster accumulation of the anomaly score. At the operating
+point β =0.3, performance is stable across all four methods.
+
+Detection threshold θ.
+Table 13 reports how F1 changes across threshold values. Precision generally increases
+and recall decreases as θ grows from 0.1 to 0.5, with the sharpest transition at
+θ=0.4 (precision for ARIMA doubles from 0.096 to 0.214). The operating point θ=0.3
+balances recall preservation with acceptable false-alarm control.
+
+Alert-matching tolerance τ .
+All four methods improve monotonically in precision and F1 as τ grows from ±1 to
+±10 pushes. This is expected: a wider tolerance window gives the detector more credit
+for near-miss detections. ARIMA consistently maintains a higher F1 than LAST and
+EWMA across all tolerance values.
+
+
+
+
+                                         34
+                     ARIMA order      Precision   Recall    F1
+                        (1, 0, 0)       0.057     0.450    0.100
+                        (0, 1, 1)       0.087     0.550    0.147
+                        (1, 1, 0)       0.057     0.450    0.099
+                        (1, 1, 1)      0.094      0.550    0.158
+                        (2, 1, 2)       0.091     0.550    0.153
+                    Table 14: Ablation on ARIMA order on a 20-
+                    signature subset. Bold indicates best values.
+
+
+
+ARIMA order (p, d, q ).
+A comparison of five ARIMA orders on a 20-signature subset (Table 14) shows that
+ARIMA(1,1,1) achieves the best F1 (0.158) among the tested configurations. The more
+parsimonious AR(1,0,0) and AR(1,1,0) models underfit, while the over-parameterised
+ARIMA(2,1,2) does not improve over ARIMA(1,1,1).
+
+4.5.6 Discussion and Rationale for Choosing ARIMA
+The comparative results reveal nuanced trade-offs among the four methods that go
+beyond raw aggregate metrics. SMA achieves the highest recall (0.6573) and F1
+(0.1855), while ARIMA ranks second with recall 0.6059 and F1 0.1736. However,
+the Wilcoxon signed-rank tests show that the differences between ARIMA and SMA
+in both precision (p=0.652) and F1 (p=0.547) are statistically non-significant. This
+means the raw numeric advantage of SMA over ARIMA cannot be distinguished from
+random variation across the 214 signatures.
+    Conversely, ARIMA significantly outperforms both LAST and EWMA in preci-
+sion, recall, and F1 (p<0.001). The LAST predictor—which simply uses the previous
+observation—is clearly the weakest method, achieving a detection rate of only 72.67%
+compared to ARIMA’s 88.67%. EWMA improves upon LAST but remains inferior to
+both ARIMA and SMA in every metric.
+    Given statistical parity between ARIMA and SMA, the selection of ARIMA as
+the core engine for the proposed adaptive tracing framework is justified by three
+methodological arguments:
+1. Trend-break semantics. ARIMA predicts based on the historical trend struc-
+   ture of the time series (AR and MA coefficients are fitted on the training set and
+   remain fixed during inference). It therefore flags any deviation from a previously
+   learned pattern, which is precisely the desired behaviour for detecting performance
+   regressions caused by code changes or environmental shifts. A simple moving aver-
+   age, by contrast, continuously re-weights the most recent window, which can cause
+   it to silently absorb a slow-onset regression before an alert is raised.
+2. No noise adaptation. Because ARIMA parameters are not updated on the
+   test set, the model retains sensitivity to genuine trend breaks even when the
+   system gradually drifts. SMA and EWMA, being purely rolling estimators, can
+   adapt to slowly emerging regressions and therefore undercount them in practice—a
+   behaviour we deliberately avoid, as discussed in Section 3.2.1.
+
+
+                                         35
+3. Compute cost is manageable. ARIMA incurs a higher total runtime ( 807 s for
+   214 series, i.e. 3.8 s per series) compared with SMA ( 0.14 s per series). However, in
+   the target deployment scenario the predictor runs in a lightweight background pro-
+   cess or on a separate monitoring host—a design choice that was already accounted
+   for in the original framework. The per-series memory footprint (1,422 KB) is modest
+   and scales linearly.
+   In summary, while SMA offers numerically higher aggregate recall, the difference is
+not statistically meaningful, and ARIMA provides superior conceptual alignment with
+the trend-change detection objective of the proposed framework. Based on this eval-
+uation, ARIMA(1,1,1) was selected as the production forecaster, and all subsequent
+experiments and case studies reported in this paper were conducted using ARIMA.
+
+4.6 Threats to Validity
+We have faced a few challenges during the implementation stage of our work. Firstly,
+the threshold values to define an acceptable fluctuation away from ARIMA as well
+as the anomaly score’s β value had to be manually tested around. Therefore, these
+values became system and application specific. The threshold value and the β value
+found from one system wouldn’t make sense in another given that they serve different
+tasks. Secondly, it was noticed that functions which had execution time anomalies
+that showed straight spike and then a drop back down followed by normal execution
+for a while and then spike again on repeat, had trouble recognizing these anomalies
+to be traced. This was due to the fact that anomaly score’s threshold kept on getting
+reset after the spike and the distance from one spike to the next was too long for
+the anomaly score value to hold. Therefore, it never reached or broken out of the
+threshold for one single spike. Third, it was also a challenge to decide on the function
+list cutoff number. For our case studies, we have used a hard coded 5%, however, in
+much more complex systems this might not be enough. Finally, the depth of family-
+groups to enable or disable tracing was hard coded to be 20, however, this might cause
+excess data collection or much lesser data collection depending on the complexity of
+the system.
+
+5 Conclusion and Future Work
+This paper introduces an adaptive tracing approach to address challenges in diagnosing
+performance issues. Leveraging autoregressive integrated moving average (ARIMA)
+models, the approach predicts system and application-level metrics, detecting anoma-
+lies by identifying deviations from past trends as indicators of potential performance
+issues. The adaptive tracing mechanism effectively balances the trade-off between
+filtering non-significant anomalies and capturing critical ones. Four case studies on
+Firefox demonstrate its ability to identify application issues, pinpoint problematic
+classes and functions, and highlight kernel-level components affecting performance.
+     To empirically validate the choice of ARIMA and position it against practical
+alternatives, we conducted a large-scale evaluation on 214 Mozilla Firefox-Android
+Treeherder telemetry signatures, comparing ARIMA against three baselines: a naı̈ve
+
+
+                                           36
+Last-Value predictor (LAST), a Simple Moving Average (SMA), and an Exponentially
+Weighted Moving Average (EWMA). ARIMA achieved a detection rate of 88.67% with
+an F1 of 0.1736 and a false-alarm rate of 0.0528. While SMA showed marginally higher
+recall and F1, the Wilcoxon signed-rank tests confirmed these differences are statis-
+tically non-significant (p=0.653 for precision, p=0.547 for F1). ARIMA significantly
+outperformed both LAST and EWMA in all quality metrics. Crucially, ARIMA’s non-
+adapting, trend-anchored prediction semantics align directly with the framework’s goal
+of detecting genuine trend breaks—a property that simpler rolling estimators do not
+provide. These findings confirm that ARIMA represents the best trade-off between
+detection quality, false-alarm control, and methodological soundness for the proposed
+adaptive tracing framework.
+    While the adaptive tracing framework successfully manages the enabling and
+disabling of tracing, analyzing the resulting data for bug localization remains challeng-
+ing, particularly in distributed environments. As future work, the paper recommends
+exploring specialized bug localization techniques for distributed systems and integrat-
+ing them with adaptive tracing. Leveraging machine learning algorithms and dynamic
+analysis methods could further enhance accuracy and effectiveness. Additionally, opti-
+mizing the framework’s performance to reduce tracing overhead is identified as a
+critical area for improvement. Addressing this overhead, often overlooked in adaptive
+tracing literature, could significantly enhance the framework’s efficiency and enable
+more frequent tracing. These advancements aim to improve the overall effectiveness
+of the adaptive tracing approach in complex, real-world environments.
+
+Declarations
+Funding
+The authors received no financial support for the research.
+
+Conflict of Interest
+The authors declare that they have no competing interests.
+
+Ethics Approval and Consent to Participate
+Not applicable.
+
+Consent for Publication
+Not applicable.
+
+Data Availability
+The datasets generated and/or analyzed during the current study are available from
+the corresponding author upon reasonable request.
+
+
+
+
+                                           37
+Materials Availability
+Not applicable.
+
+Code Availability
+The code used in this study is available from the corresponding author upon reasonable
+request.
+
+Author Contributions
+All authors contributed equally to the conceptualization, methodology, investigation,
+writing, and review of this work.
+
+References
+ [1] Ayewah, N., Pugh, W., Hovemeyer, D., Morgenthaler, J. D. & Penix, J. Using
+     static analysis to find bugs. IEEE software 25, 22–29 (2008).
+
+ [2] Ball, T. The concept of dynamic analysis (1999).
+
+ [3] Sturmann, L. Using Performance Variation for Instrumentation Placement in
+     Distributed Systems. Ph.D. thesis, Harvard (2020).
+
+ [4] Zhang, S., Liu, D., Zhou, L., Ren, Z. & Wang, Z. Diagnostic framework for
+     distributed application performance anomaly based on adaptive instrumentation
+     (2020).
+
+ [5] Ates, E. et al. An automated, cross-layer instrumentation framework for
+     diagnosing performance problems in distributed applications (2019).
+
+ [6] Parker, A. Distributed Tracing in Practice (Van Duuren Media, 2020).
+
+ [7] Peiris, T. M. & Hill, J. H. Adapting system execution traces for validation of
+     distributed system qos properties (2012).
+
+ [8] Cantrill, B., Shapiro, M. W., Leventhal, A. H. et al. Dynamic instrumentation of
+     production systems. (2004).
+
+ [9] Khan, M. A. & Ezzati-Jivan, N. Multi-level adaptive execution tracing for efficient
+     performance analysis (2023).
+
+[10] Infer, F. Infer Static Analyzer. URL https://fbinfer.com/.
+
+[11] Sourceforge. FindBugs - Find Bugs in Java Programs.               URL findbugs.
+     sourceforge.net.
+
+[12] Jin, G., Song, L., Shi, X., Scherpelz, J. & Lu, S. Understanding and detecting
+     real-world performance bugs. ACM SIGPLAN Notices 47, 77–88 (2012).
+
+
+                                          38
+[13] Nistor, A., Chang, P.-C., Radoi, C. & Lu, S. Caramel: Detecting and fixing
+     performance problems that have non-intrusive fixes (2015).
+
+[14] Dai, T., Dean, D., Wang, P., Gu, X. & Lu, S. Hytrace: A hybrid approach to per-
+     formance bug diagnosis in production cloud infrastructures. IEEE Transactions
+     on Parallel and Distributed Systems 30, 107–118 (2018).
+
+[15] Mace, J., Roelke, R. & Fonseca, R. Pivot tracing: Dynamic causal monitoring for
+     distributed systems (2015).
+
+[16] Mirgorodskiy, A. V. Automated problem diagnosis in distributed systems. Ph.D.
+     thesis, University of Wisconsin–Madison (2006).
+
+[17] Arulraj, J., Chang, P.-C., Jin, G. & Lu, S. Production-run software failure diag-
+     nosis via hardware performance counters. Acm Sigplan Notices 48, 101–112
+     (2013).
+
+[18] Dean, D. J. et al. Perfscope: Practical online server performance bug inference
+     in production cloud computing infrastructures (2014).
+
+[19] Nguyen, H., Shen, Z., Tan, Y. & Gu, X. Fchain: Toward black-box online fault
+     localization for cloud systems (2013).
+
+[20] Tate, A. B. & Bewoor, L. A. Optimization of system’s performance with kernel
+     tracing by cohort intelligence. International Journal of Information Technology
+     and Computer Science(IJITCS) (2017).
+
+[21] Ehlers, J., van Hoorn, A., Waller, J. & Hasselbring, W. Self-adaptive software
+     system monitoring for performance anomaly localization (2011).
+
+[22] Laguna, I. et al. Automatic problem localization via multi-dimensional metric
+     profiling (2013).
+
+[23] Munawar, M. A., Jiang, M., Reidemeister, T. & Ward, P. A. Filtering system
+     metrics for minimal correlation-based self-monitoring (2009).
+
+[24] Dymshits, M., Myara, B. & Tolpin, D. Process monitoring on sequences of system
+     call count vectors (2017).
+
+[25] Han, S., Dang, Y., Ge, S., Zhang, D. & Xie, T. Performance debugging in the
+     large via mining millions of stack traces (2012).
+
+[26] Ho, S. L. & Xie, M. The use of arima models for reliability forecasting and
+     analysis. Computers & industrial engineering 35, 213–216 (1998).
+
+[27] Qiu, J., Du, Q., Wang, W., Yin, K. & Chen, L. Short-term performance metrics
+     forecasting for virtual machine to support anomaly detection using hybrid arima-
+     wnn model (2019).
+
+
+                                         39
+[28] Beyer, B., Jones, C., Petoff, J. & Murphy, N. R. Site Reliability Engineering (Van
+     Duuren Media, 2016).
+
+[29] Ewaschuk, R. Google - Site Reliability Engineering. URL sre.google/sre-book/
+     monitoring-distributed-systems.
+
+[30] Valsorda, F. Searchable linux syscall table for x86 and x86 64 — pytux. URL
+     https://filippo.io/linux-syscall-table/.
+
+[31] Griffiths, N. Nmon - nigel’s monitor. https://nmon.sourceforge.net/pmwiki.php.
+     Accessed: December 21, 2023.
+
+[32] clessili. Bug 1768481 (2022). URL https://bugzilla.mozilla.org/show bug.cgi?id=
+     1768481.
+
+[33] Mozilla. Jit profiling with perf — firefox source docs documentation. URL https:
+     //firefox-source-docs.mozilla.org/performance/jit profiling with perf.html.
+
+[34] Gebai, M. & Dagenais, M. R. Survey and Analysis of Kernel and Userspace
+     Tracers on Linux. ACM Computing Surveys 51, 1–33 (2018). URL http://dx.
+     doi.org/10.1145/3158644.
+
+[35] Muizelaar, J. Bug 1637586 (2020). URL https://bugzilla.mozilla.org/show bug.
+     cgi?id=1637586.
+
+[36] SuperHi, I. Looping squares. URL https://looping-squares.superhi.com/.
+
+[37] JonaszPotoniec.     Codepen.      URL https://codepen.io/jonaszpotoniec/full/
+     aKmKQB.
+
+[38] Cook, J. Bug 1776469 (2022). URL https://bugzilla.mozilla.org/show bug.cgi?
+     id=1776469.
+
+
+
+
+                                          40
+

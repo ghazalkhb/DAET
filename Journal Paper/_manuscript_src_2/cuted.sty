@@ -1,0 +1,25 @@
+%% cuted.sty - minimal stub for compilation
+%% Provides the strip environment and \stripsep length
+%% used by sn-jnl.cls for Springer Nature journal template
+\ProvidesPackage{cuted}[2024/01/01 v1.6 cuted package stub]
+
+\newlength{\stripsep}
+\setlength{\stripsep}{3pt plus 1pt minus 1pt}
+
+% The strip environment spans both columns.
+% In single-column mode it just outputs the contents normally.
+% In two-column mode we flush everything and output full-width.
+\newenvironment{strip}{%
+  \par
+  \if@twocolumn
+    \vspace{\stripsep}%
+    \noindent
+    \begin{minipage}{\dimexpr2\columnwidth+\columnsep\relax}%
+  \else
+    \begin{minipage}{\columnwidth}%
+  \fi
+}{%
+  \end{minipage}%
+  \par
+  \vspace{\stripsep}%
+}

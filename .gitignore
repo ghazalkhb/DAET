@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+
+# macOS metadata
+__MACOSX/
+.DS_Store
+
+# Large timeseries raw data (11k+ CSV files — too large for GitHub)
+Data/timeseries-data/
+
+# Large data / output files (keep CSVs that are tracked results)
+*.zip
+*.7z
+*.tar.gz
+
+# Windows
+Thumbs.db
+desktop.ini

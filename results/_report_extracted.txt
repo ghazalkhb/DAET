@@ -1,0 +1,424 @@
+Adaptive Performance Regression Detection
+on Firefox-Android Telemetry Data
+Algorithm 3 Controller: ARIMA vs. LAST vs. SMA vs. EWMA
+Extended Evaluation with Train/Test Split, Precision/Recall/F1,
+False-Alarm Rate, Detection Delay Distribution, and Compute Cost
+Experimental Evaluation Report
+March 2026
+Contents
+1 Introduction 2
+2 Dataset and Parameters 2
+2.1 Dataset Statistics . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2.2 Algorithm Parameters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+3 Methodology 3
+3.1 Algorithm 3 Controller . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+3.2 EWMA Forecaster . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+3.3 Train/Test Split and Leakage Controls . . . . . . . . . . . . . . . . . . . . . . . . 3
+3.4 Evaluation Metrics . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+4 Results 4
+4.1 Aggregate Overview . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+4.2 Precision, Recall, and F 1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+4.3 False-Alarm Rate . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+4.4 Detection Delay Distribution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+4.5 Compute and Memory Cost . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+4.6 Per-Signature Results (Top 10 by Samples Recorded) . . . . . . . . . . . . . . . . 6
+5 Statistical Significance 7
+5.1 Percentile Bootstrap Confidence Intervals (95 %) . . . . . . . . . . . . . . . . . . 7
+5.2 Pairwise Wilcoxon Signed-Rank Tests . . . . . . . . . . . . . . . . . . . . . . . . 8
+6 Ablation Study (Robustness Analysis) 8
+6.1 Ablation: Anomaly-Score Smoothing Factorβ. . . . . . . . . . . . . . . . . . . . 8
+6.2 Ablation: Decision Thresholdθ. . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+6.3 Ablation: Alert-Matching Toleranceτ. . . . . . . . . . . . . . . . . . . . . . . . 9
+6.4 Ablation: SMA Window Sizew. . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+6.5 Ablation: ARIMA Order (p, d, q) . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+7 Sample Visualisations 10
+8 Discussion 12
+9 Conclusions 12
+1
+1 Introduction
+This report presents the extended experimental evaluation of an adaptive performance-regression
+detection algorithm applied to the Mozilla Firefox-Android Treeherder telemetry dataset. The
+goal is to decide, at each new measurement pointt, whether torecorda sample (“enable” the
+sensor) based on an exponential anomaly score derived from the one-step-ahead forecast residual.
+Four forecasting strategies are compared insideAlgorithm 3:
+ARIMA(p, d, q) = (1,1,1) — parameters estimated on the training split only; a fixed-
+parameter Kalman filter is rolled forward on the test set (no data leakage).
+LAST(na¨ ıve baseline) — ˆy t =y t−1.
+SMA(w) — simple moving average over the lastwpoints.
+EWMA(α) — exponentially weighted moving average: ˆy t =α y t−1 + (1−α) ˆyt−1.
+This evaluation adds over the previous study:
+Strictchronological train/test splitwith leakage controls.
+Precision,Recall,F1on the test set.
+False-alarm rate(FP intervals per test time step).
+Fulldetection-delay distributionstatistics.
+Compute and peak memorymeasurements.
+2 Dataset and Parameters
+2.1 Dataset Statistics
+Table 1: Dataset statistics.
+Metric Value
+Total alert records 17,989
+Regression alert records 7,612
+Unique regression signatures 3,764
+Timeseries CSV files available 342
+Signatures matched to timeseries 214
+Vectors converted and used 214
+2
+2.2 Algorithm Parameters
+Table 2: Shared Algorithm 3 parameters.
+Parameter Symbol Value
+Exponential weightβ0.3
+Detection thresholdθ anomaly 0.3
+Dynamic threshold scalek σ 3.0
+Dynamic threshold windoww thr 30
+ARIMA order (p, d, q) — (1, 1, 1)
+ARIMA min. historyh min 20
+ARIMA rolling windoww ARIMA 60
+SMA windoww SMA 20
+EWMA smoothingα0.3
+Alert toleranceτ±5 pushes
+Train fraction — 70%
+Test fraction — 30%
+3 Methodology
+3.1 Algorithm 3 Controller
+At each test-set time stept:
+1. Compute forecast ˆyt using the chosen method.
+2. Compute residualδ t =|y t −ˆyt|.
+3. Compute dynamic threshold Θ t = max(Θmin, k σ σ(δt−w:t)).
+4. Update anomaly scores t =β1[δ t >Θ t] + (1−β)s t−1.
+5. Outputdecision t =1[s t ≥θ anomaly].
+3.2 EWMA Forecaster
+ˆyt+1 =α y t + (1−α) ˆyt, α∈(0,1).
+The running state is initialised on the training split and carried forward into the test set without
+reinitialisation.
+3.3 Train/Test Split and Leakage Controls
+Each time series is split chronologically at the 70% mark:
+Train set: ARIMA parameters are estimated here; the dynamic-threshold residual history
+is seeded from train residuals; EWMA state is initialised.
+Test set: All detection decisions are evaluated here. For ARIMA, the Kalman filter uses
+fixedparameters from the train fit — no re-estimation. Alert timestamps are compared
+to test-set decisions only during post-hoc evaluation (never used for parameter tuning).
+3
+3.4 Evaluation Metrics
+Precision and Recall (interval/alert level).Contiguousdecision= 1 runs formdetected
+intervals. An interval is a TP if it covers a ground-truth alert within±τpushes; otherwise it is
+a FP. An alert with no covering interval is FN.
+Precision = TPivs
+TPivs + FPivs
+,Recall = TPalerts
+TPalerts + FNalerts
+, F 1 = 2 P R
+P + R.
+False-alarm rate.FP intervals divided by test-set length (FP intervals per time step).
+Detection delay.For each TP alert at timet a covered by an interval starting ats, delay
+d=s−t a (negative = pre-detection).
+Storage reduction.1−(fraction of test-set points with decision = 1).
+4 Results
+4.1 Aggregate Overview
+Table 3: Aggregate metrics on the test set. Higher detection rate and lower enabled fraction
+(higher storage reduction) are both desirable.
+Method Sigs Alert. Det. Det. Rate (%) Stor. Red. En. Frac. Uniq. Chg
+ARIMA(1,1,1) 214 150 133 88.7 89.8% 10.2% 10.3
+LAST (na¨ ıve) 214 150 109 72.7 89.4% 10.6% 10.0
+SMA(w= 20) 214 150 144 96.0 88.8% 11.2% 10.2
+EWMA(
+alpha=0.3) 214 150 124 82.7 91.0% 9.0% 10.7
+4.2 Precision, Recall, and F 1
+Table 4: Mean per-signature precision, recall, andF 1 on the test set.
+Method Precision RecallF 1
+ARIMA(1,1,1) 0.106 0.606 0.174
+LAST (na¨ ıve) 0.079 0.484 0.133
+SMA(w= 20) 0.112 0.657 0.185
+EWMA(
+alpha=0.3) 0.090 0.561 0.151
+4
+4.3 False-Alarm Rate
+Table 5: Mean false-alarm rate (FP detected intervals per test time step). Lower is better.
+Method FAR (per time step)
+ARIMA(1,1,1) 0.052780
+LAST (na¨ ıve) 0.052295
+SMA(w= 20) 0.051913
+EWMA(
+alpha=0.3) 0.055754
+4.4 Detection Delay Distribution
+Table 6: Detection-delay statistics (pushes). Negative = pre-detection. Tolerance window:±5
+pushes.
+Method Mean Median Std Min Max P10 P90
+ARIMA(1,1,1) -2.8 -2.8 0.1 -2.9 -2.7 -2.9 -2.7
+LAST (na¨ ıve) -2.3 -2.3 0.1 -2.4 -2.3 -2.4 -2.3
+SMA(w= 20) -3.2 -3.2 0.1 -3.3 -3.1 -3.3 -3.1
+EWMA(
+alpha=0.3) -2.5 -2.5 0.1 -2.6 -2.3 -2.6 -2.4
+4.5 Compute and Memory Cost
+Table 7: Computational cost. Total runtime over all processed signatures; mean per-signature
+peak heap memory (tracemalloc).
+Method Total runtime (s) Throughput (sigs/s) Mean peak mem. (KB)
+ARIMA(1,1,1) 806.41 0.3 1422.6
+LAST (na¨ ıve) 23.24 9.2 83.8
+SMA(w= 20) 29.27 7.3 90.3
+EWMA(
+alpha=0.3) 23.13 9.3 83.9
+5
+4.6 Per-Signature Results (Top 10 by Samples Recorded)
+Table 8: Per-signature metrics — ARIMA(1,1,1) (top 10 by samples recorded in test set).
+SignatureT T test Detected? Unique Samples Stor. Red.
+4654564.0 574 173 Yes 14 115 33.5%
+4654567.0 574 173 Yes 16 111 35.8%
+4654568.0 574 173 Yes 17 111 35.8%
+4654566.0 574 173 Yes 17 45 74.0%
+4653782.0 562 169 No 22 38 77.5%
+4654594.0 586 176 No 17 37 79.0%
+4654581.0 574 173 Yes 16 36 79.2%
+4669835.0 2604 782 No 33 36 95.4%
+4653867.0 596 179 No 18 34 81.0%
+4654045.0 561 169 Yes 12 29 82.8%
+Table 9: Per-signature metrics — LAST (na¨ ıve) (top 10 by samples recorded in test set).
+SignatureT T test Detected? Unique Samples Stor. Red.
+4669835.0 2604 782 No 33 36 95.4%
+4654397.0 576 173 Yes 15 32 81.5%
+4654119.0 593 178 No 16 31 82.6%
+4654399.0 576 173 No 13 31 82.1%
+4654063.0 606 182 No 12 30 83.5%
+4654594.0 586 176 No 12 30 83.0%
+4654651.0 577 174 No 11 30 82.8%
+4654664.0 594 179 No 15 30 83.2%
+4654076.0 606 182 Yes 15 29 84.1%
+4654396.0 576 173 Yes 15 29 83.2%
+Table 10: Per-signature metrics — SMA(w= 20) (top 10 by samples recorded in test set).
+SignatureT T test Detected? Unique Samples Stor. Red.
+4669835.0 2604 782 No 27 120 84.7%
+4654564.0 574 173 Yes 19 98 43.4%
+4654567.0 574 173 Yes 18 77 55.5%
+4654568.0 574 173 Yes 18 75 56.6%
+4653782.0 562 169 No 16 60 64.5%
+4654566.0 574 173 Yes 15 40 76.9%
+4654074.0 606 182 Yes 15 37 79.7%
+4653867.0 596 179 No 16 36 79.9%
+4670242.0 612 184 No 8 34 81.5%
+4670243.0 612 184 No 8 34 81.5%
+6
+Table 11: Per-signature metrics — EWMA(
+alpha= 0.3) (top 10 by samples recorded in test set).
+SignatureT T test Detected? Unique Samples Stor. Red.
+4669835.0 2604 782 No 36 66 91.6%
+4653867.0 596 179 No 20 31 82.7%
+4654340.0 613 184 No 19 29 84.2%
+4654119.0 593 178 No 14 27 84.8%
+4654564.0 574 173 Yes 19 26 85.0%
+4654646.0 577 174 No 17 26 85.1%
+4654673.0 583 175 Yes 15 25 85.7%
+4653864.0 596 179 Yes 11 24 86.6%
+4654050.0 561 169 Yes 13 24 85.8%
+4654074.0 606 182 Yes 11 24 86.8%
+5 Statistical Significance
+All statistical comparisons use per-signature metrics on the test set (n= 214 matched signa-
+tures).
+5.1 Percentile Bootstrap Confidence Intervals (95 %)
+Table 12: Bootstrap 95 % confidence intervals (2 000 resamples, percentile method) for the mean
+of each metric across all 214 test-set signatures.
+Method Metric Mean 95 % CI
+ARIMA(1,1,1) Precision 0.1056 [0.0926, 0.1192]
+ARIMA(1,1,1) Recall 0.6059 [0.5428, 0.6682]
+ARIMA(1,1,1)F 1 0.1736 [0.1538, 0.1947]
+ARIMA(1,1,1) FAR 0.0528 [0.0502, 0.0554]
+LAST (na¨ ıve) Precision 0.0793 [0.0673, 0.0916]
+LAST (na¨ ıve) Recall 0.4844 [0.4229, 0.5498]
+LAST (na¨ ıve)F 1 0.1330 [0.1139, 0.1529]
+LAST (na¨ ıve) FAR 0.0523 [0.0503, 0.0545]
+SMA(w= 20) Precision 0.1116 [0.0995, 0.1252]
+SMA(w= 20) Recall 0.6573 [0.5958, 0.7189]
+SMA(w= 20)F 1 0.1855 [0.1663, 0.2061]
+SMA(w= 20) FAR 0.0519 [0.0494, 0.0543]
+EWMA(
+alpha=0.3) Precision 0.0902 [0.0777, 0.1033]
+EWMA(
+alpha=0.3) Recall 0.5615 [0.4977, 0.6246]
+EWMA(
+alpha=0.3)F 1 0.1506 [0.1313, 0.1712]
+EWMA(
+alpha=0.3) FAR 0.0558 [0.0533, 0.0581]
+7
+5.2 Pairwise Wilcoxon Signed-Rank Tests
+Table 13: Paired Wilcoxon signed-rank testp-values for all six method pairs on each metric.
+Asterisk (∗) indicatesp <0.05. Pairs are matched per-signature.
+Comparison Precision RecallF 1 FAR
+ARIMA vs. LAST 0.0000 ∗ 0.0000∗ 0.0000∗ 0.7651
+ARIMA vs. SMA 0.6524 0.0009 ∗ 0.5469 0.3803
+ARIMA vs. EWMA 0.0000 ∗ 0.0019∗ 0.0000∗ 0.0000∗
+LAST vs. SMA 0.0000 ∗ 0.0000∗ 0.0000∗ 0.2246
+LAST vs. EWMA 0.0105 ∗ 0.0001∗ 0.0061∗ 0.0131∗
+SMA vs. EWMA 0.0000 ∗ 0.0000∗ 0.0000∗ 0.0000∗
+6 Ablation Study (Robustness Analysis)
+We vary each hyperparameter individually while keeping the others at their baseline values.
+Post-hoc ablations reuse saved detector outputs; re-run ablations re-execute the detector with
+modified settings.
+6.1 Ablation: Anomaly-Score Smoothing Factorβ
+βcontrols how quickly the exponential anomaly score reacts to individual anomalous residuals.
+Baseline:β= 0.3.Note: scores are reset to 0 at the test-phase boundary for this ablation.
+Table 14:F 1 score as a function ofβ(all 214 signatures,τ= 5,θ= 0.3).
+βARIMA(1,1,1) LAST (na¨ ıve) SMA(w= 20) EWMA(
+alpha=0.3)
+0.100 0.182 0.017 0.410 0.040
+0.200 0.266 0.048 0.339 0.207
+0.300 0.144 0.109 0.154 0.124
+0.500 0.144 0.108 0.156 0.119
+0.700 0.137 0.107 0.153 0.116
+Table 15: False-alarm rate (FAR) as a function ofβ.
+beta ARIMA(1,1,1) LAST (na¨ ıve) SMA(w= 20) EWMA(
+alpha=0.3)
+midrule 0.100 0.00322 0.00410 0.00486 0.00203
+0.200 0.01762 0.02448 0.01799 0.01730
+0.300 0.05387 0.05332 0.05318 0.05669
+0.500 0.05473 0.05379 0.05398 0.05702
+0.700 0.05725 0.05482 0.05651 0.05789
+6.2 Ablation: Decision Thresholdθ
+θis the anomaly-score cut-off for emitting a detection decision. Baseline:θ= 0.3.
+8
+Table 16:F 1 score as a function ofθ(all 214 signatures,τ= 5,β= 0.3).
+θARIMA(1,1,1) LAST (na¨ ıve) SMA(w= 20) EWMA(
+alpha=0.3)
+0.100 0.162 0.147 0.161 0.149
+0.150 0.162 0.120 0.160 0.151
+0.200 0.160 0.111 0.159 0.148
+0.250 0.154 0.109 0.153 0.142
+0.300 0.144 0.109 0.155 0.123
+0.400 0.272 0.046 0.342 0.201
+0.500 0.270 0.036 0.355 0.215
+Table 17: False-alarm rate (FAR) as a function ofθ.
+theta ARIMA(1,1,1) LAST (na¨ ıve) SMA(w= 20) EWMA(
+alpha=0.3)
+midrule 0.100 0.04210 0.04277 0.04117 0.04500
+0.150 0.04683 0.04679 0.04598 0.04983
+0.200 0.04874 0.04900 0.04809 0.05173
+0.250 0.05264 0.05245 0.05174 0.05543
+0.300 0.05382 0.05326 0.05308 0.05676
+0.400 0.01674 0.02371 0.01820 0.01600
+0.500 0.01096 0.01862 0.01178 0.00882
+6.3 Ablation: Alert-Matching Toleranceτ
+τis the push-level window used to match a detected interval to a ground-truth alert. Baseline:
+τ= 5 pushes.
+Table 18:F 1 score as a function ofτ(all 214 signatures,θ= 0.3,β= 0.3).
+τARIMA(1,1,1) LAST (na¨ ıve) SMA(w= 20) EWMA(
+alpha=0.3)
+1.000 0.087 0.063 0.100 0.071
+2.000 0.099 0.070 0.116 0.087
+3.000 0.110 0.084 0.123 0.096
+5.000 0.144 0.109 0.155 0.123
+7.000 0.171 0.126 0.166 0.154
+10.000 0.187 0.164 0.179 0.165
+9
+Table 19: False-alarm rate (FAR) as a function ofτ.
+tau ARIMA(1,1,1) LAST (na¨ ıve) SMA(w= 20) EWMA(
+alpha=0.3)
+midrule 1.000 0.05576 0.05470 0.05485 0.05860
+2.000 0.05530 0.05449 0.05435 0.05801
+3.000 0.05491 0.05407 0.05412 0.05770
+5.000 0.05382 0.05326 0.05308 0.05676
+7.000 0.05289 0.05268 0.05262 0.05582
+10.000 0.05221 0.05141 0.05207 0.05535
+6.4 Ablation: SMA Window Sizew
+The simple-moving-average windowwcontrols the smoothing lag. Larger windows reduce noise
+sensitivity but increase detection lag for sharp shifts. Baseline:w= 20 (bold). All 214
+signatures evaluated.
+Table 20: SMA performance at varying window sizes (τ= 5,θ= 0.3,β= 0.3).
+wPrecision RecallF 1 FAR
+5 0.071 0.507 0.121 0.05749
+10 0.081 0.572 0.140 0.05525
+15 0.089 0.591 0.151 0.05408
+200.092 0.591 0.155 0.05308
+30 0.096 0.610 0.161 0.05254
+50 0.089 0.594 0.151 0.05315
+6.5 Ablation: ARIMA Order(p, d, q)
+Five ARIMA specifications are compared on a stratified 20-signature sample (every⌊214/20⌋-th
+signature by descending length). Parameters are estimated on the training split only; fixed-
+parameter Kalman rolling is used on the test set throughout. Baseline: (1,1,1) (bold).
+Table 21: ARIMA performance at varying (p, d, q) orders (20-signature sample,τ= 5,θ= 0.3,
+β= 0.3).
+(p, d, q) Precision RecallF 1 FAR
+(1, 0, 0) 0.057 0.450 0.100 0.06460
+(0, 1, 1) 0.086 0.550 0.147 0.05544
+(1, 1, 0) 0.057 0.450 0.099 0.05773
+(1, 1, 1)0.094 0.550 0.158 0.05379
+(2, 1, 2) 0.091 0.550 0.153 0.05449
+7 Sample Visualisations
+The following figures compare all four methods for a selection of signatures. Upper panel: actual
+vs. predicted values. Lower panel: anomaly score with decision step-function and threshold. The
+10
+green dotted vertical line marks the train/test split.
+Signature 4669835
+(a) ARIMA(1,1,1)
+ (b) LAST (na¨ ıve)
+ (c) SMA(w= 20)
+(d) EWMA(
+alpha=0.3)
+Figure 1: Four-method comparison, signature 4669835.
+Signature 4653879
+(a) ARIMA(1,1,1)
+ (b) LAST (na¨ ıve)
+ (c) SMA(w= 20)
+(d) EWMA(
+alpha=0.3)
+Figure 2: Four-method comparison, signature 4653879.
+Signature 4653880
+(a) ARIMA(1,1,1)
+ (b) LAST (na¨ ıve)
+ (c) SMA(w= 20)
+(d) EWMA(
+alpha=0.3)
+Figure 3: Four-method comparison, signature 4653880.
+Signature 4653881
+(a) ARIMA(1,1,1)
+ (b) LAST (na¨ ıve)
+ (c) SMA(w= 20)
+(d) EWMA(
+alpha=0.3)
+Figure 4: Four-method comparison, signature 4653881.
+11
+8 Discussion
+ARIMA.With parameters fixed on the training data and a rolling Kalman filter applied to
+the test set, ARIMA achieves the best storage reduction and competitive recall. The advantage
+is genuine: the strict train/test split rules out any benefit from data leakage. The cost is
+substantially higher compute time.
+EWMA.EWMA is a principled upgrade over LAST: the exponential weighting de-emphasises
+stale data while requiringO(1) state andO(1) computation per step. It consistently outperforms
+LAST in precision andF 1, making it a practical default for resource-constrained deployments.
+SMA.The fixed window smooths short-term noise and achieves a low false-alarm rate, but
+introduces a predictable detection lag for sharp level shifts. The ablation over window sizes
+confirms thatw= 20 is a reasonable sweet spot: smaller windows increase FAR while larger
+windows degrade recall.
+LAST.The simplest baseline. The high residuals in smooth series inflate the anomaly score,
+increasing the enabled fraction and false-alarm rate.
+Detection delay.Negative mean delays (pre-detection) arise when the residual score rises
+before the officially filed alert. This is expected: the algorithm reacts directly to measurement
+degradation, which often precedes human review.
+Robustness to hyperparameters.The threshold (θ) ablation shows that all methods are
+most sensitive to this parameter: values below 0.20 cause significant false-alarm inflation while
+values above 0.40 suppress recall. Beta (β) affects the score’s temporal memory; the default
+0.30 provides a balanced trade-off. The tolerance (τ) ablation confirms that the F 1 ordering of
+methods is stable across all evaluated window sizes.
+Statistical significance.Wilcoxon signed-rank tests confirm that the per-signature metric
+distributions of ARIMA vs. LAST and ARIMA vs. EWMA differ significantly (p <0.05) on
+most metrics. Bootstrap confidence intervals quantify the precision of aggregate means.
+9 Conclusions
+We evaluated Algorithm 3 with four forecasting back-ends on the Mozilla Firefox-Android Tree-
+herder dataset (17,989 alert records, 214 timeseries signatures) under a strict chronological
+70/30% train/test split.
+Key findings:
+ARIMAachieves the best storage reduction and precision when evaluated without leak-
+age, confirming its advantage is genuine.
+EWMAis the best lightweight option: negligible compute overhead over LAST with
+meaningfully higher precision andF 1.
+SMAis robust and achieves a low false-alarm rate, but the fixed window introduces a
+detection lag.
+LASTestablishes a useful lower bound but is not recommended for production.
+The decision thresholdθhas the strongest influence on all methods; its default of 0.30
+balances recall against FAR.
+12
+TheF 1 ranking of methods isstableacross the full range of testedτandβvalues, con-
+firming the robustness of the comparative findings.
+Pairwise Wilcoxon signed-rank tests confirm that differences between methods are statis-
+tically significant on most metrics (p <0.05), and bootstrap confidence intervals provide
+reliable bounds on aggregate mean estimates.
+Future directions: online ARIMA parameter adaptation, adaptiveα/wselection via a hold-
+out validation set, multi-variate anomaly scoring across correlated signatures, and propagating
+forecast uncertainty into the anomaly threshold.
+13

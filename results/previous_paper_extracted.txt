@@ -1,0 +1,458 @@
+﻿                                                                                                                                                                                                    Multi-level Adaptive Execution Tracing for Efficient
+2023 IEEE/ACIS 21st International Conference on Software Engineering Research, Management and Applications (SERA) | 979-8-3503-4588-9/23/$31.00 ©2023 IEEE | DOI: 10.1109/SERA57763.2023.10197790
+
+
+
+
+                                                                                                                                                                                                                   Performance Analysis
+                                                                                                                                                                                                                                Mohammed Adib Khan                                                   Naser Ezzati-Jivan
+                                                                                                                                                                                                                                    Brock University                                                  Brock University
+                                                                                                                                                                                                                              St. Catharines, ON L2S 3A1                                        St. Catharines, ON L2S 3A1
+                                                                                                                                                                                                                                   ak19qp@brocku.ca                                                  nezzati@brocku.ca
+
+
+
+                                                                                                                                                                                                       Abstract—Troubleshooting system performance issues is a chal-               prioritize high standard deviation groups, whereas there could
+                                                                                                                                                                                                    lenging task that requires a deep understanding of various factors             be underlying consistently worse performing offenders going
+                                                                                                                                                                                                    that may impact system performance. This process involves                      undetected. Also, anomaly-based adaptive tracing would trig-
+                                                                                                                                                                                                    analyzing trace logs from the kernel and user space using tools
+                                                                                                                                                                                                    such as ftrace, strace, DTrace, or LTTng. However, pre-set tracing             ger events or tracepoints even for extremely rare occurrences
+                                                                                                                                                                                                    instrumentation can lead to missing important data where not                   of anomalies which are not always necessary due to their
+                                                                                                                                                                                                    enough components of the system include observability coverage.                negligible impact on performance.
+                                                                                                                                                                                                    Also, having too much coverage may result in unnecessary noise
+                                                                                                                                                                                                    in the data, making it extremely difficult to debug. This paper
+                                                                                                                                                                                                                                                                                      We introduce a novel three-phase adaptive tracing mecha-
+                                                                                                                                                                                                    proposes an adaptive instrumentation technique for execution                   nism that balances the amount of information gathered based
+                                                                                                                                                                                                    tracing, which dynamically makes decisions not only for which                  on the observed significant changes in program behavior.
+                                                                                                                                                                                                    components to trace but also when to trace, thus reducing the risk             Our method starts by thoroughly stress-testing the application
+                                                                                                                                                                                                    of missing important data related to the performance problem                   to gain a deeper understanding of its behavior and identify
+                                                                                                                                                                                                    and increasing the accuracy of debugging by reducing unwanted
+                                                                                                                                                                                                    noises. Our case study results show that the proposed method is
+                                                                                                                                                                                                                                                                                   areas of performance variability and corresponding functions.
+                                                                                                                                                                                                    capable of handling tracing instrumentation dynamically for both               Then in the production, the method constantly monitors these
+                                                                                                                                                                                                    kernel and application levels while maintaining a low overhead.                functions and modifies the tracing configuration (by including
+                                                                                                                                                                                                       Index Terms—Software observability, software performance,                   or excluding other relevant functions or system calls) as sig-
+                                                                                                                                                                                                    adaptive instrumentation, change detection, execution tracing                  nificant changes in behavior are noticed. This results in a more
+                                                                                                                                                                                                                                                                                   efficient and effective way of collecting just the necessary
+                                                                                                                                                                                                                            I. I NTRODUCTION
+                                                                                                                                                                                                                                                                                   information for debugging and performance analysis as noise
+                                                                                                                                                                                                       Software developers use various static and dynamic analysis                 in data is reduced. Our case study assessment indicates that
+                                                                                                                                                                                                    [1], [2] methods such as logging [3], tracing [4], [5], and                    the proposed mechanism is suitable for applications of diverse
+                                                                                                                                                                                                    monitoring key metrics [6], [7] to analyze and comprehend                      complexity levels, as shown by its success in effectively
+                                                                                                                                                                                                    their programs, and diagnose and resolve performance issues                    gathering essential log data related to various performance
+                                                                                                                                                                                                    and faults.                                                                    issues in real-world systems such as Firefox.
+                                                                                                                                                                                                       The traditional approach in tracing and logging is to main-
+                                                                                                                                                                                                                                                                                     In this work, we present several contributions to the field
+                                                                                                                                                                                                    tain a fixed configuration throughout the entire execution, even
+                                                                                                                                                                                                                                                                                   of adaptive tracing:
+                                                                                                                                                                                                    though the behavior of the system may change completely [5].
+                                                                                                                                                                                                    Determining which tracepoints or probes to enable is a major                      • A comprehensive approach to understand program behav-
+                                                                                                                                                                                                    challenge in tracing and logging. If too many tracepoints are                       ior in various stress scenarios and determine the relevant
+                                                                                                                                                                                                    enabled, the resulting data can be cluttered with irrelevant in-                    methods, modules, and system calls to monitor.
+                                                                                                                                                                                                    formation, making it difficult and costly to identify and resolve                 • An algorithm to group program functions and system
+                                                                                                                                                                                                    problems. On the other hand, enabling too few tracepoints can                       calls into different classes and prioritize them based on
+                                                                                                                                                                                                    lead to missing important tracing data, hindering the ability                       performance impact.
+                                                                                                                                                                                                    to effectively address the issue at hand [8]. Adaptive tracing                    • An algorithm to adjust tracing configuration by detect-
+                                                                                                                                                                                                    is a technique that adjusts the tracing configuration in real-                      ing changes in the trend of execution time of program
+                                                                                                                                                                                                    time, leading to an improved trace log collection as well as                        methods and system calls, while filtering out insignificant
+                                                                                                                                                                                                    an efficient process of identifying and resolving issues [9].                       changes.
+                                                                                                                                                                                                       Several works have been conducted on adaptive tracing
+                                                                                                                                                                                                    and logging based on static [10]–[12] and dynamic analyses                        The paper is structured into four sections. Section II reviews
+                                                                                                                                                                                                    [8], [13]. However, existing works face several limitations. In                relevant research in the field. Section III details the proposed
+                                                                                                                                                                                                    situations where past unexpected behavior becomes the new                      methodology for adaptive tracing. Section IV presents a case
+                                                                                                                                                                                                    expected behavior for a system, existing trend-based adaptive                  study on Firefox to showcase the effectiveness of the proposed
+                                                                                                                                                                                                    tracing cannot adapt to such increasing or decreasing of the                   method. The final section, Section V, provides conclusions and
+                                                                                                                                                                                                    baseline resource usage. Meanwhile, clustering methods would                   directions for future work.
+
+
+
+                                                                                                                                                                                                    979-8-3503-4588-9/23/$31.00 ©2023 IEEE                                     104
+                                                                                                                                                                                                    SERA 2023, May 23-25, 2023, Orlando, USA
+                                                                                                                                                                                                              Authorized licensed use limited to: Brock University. Downloaded on March 06,2026 at 19:37:43 UTC from IEEE Xplore. Restrictions apply.
+                      II. R ELATED W ORKS                                                                 Runtime Program
+                                                                                                       Behavior Comprehension
+   Several studies have proposed methods for enhancing adap-
+                                                                                                       Sys & Method
+tive logging and tracing in software systems. Yuan et al.                             System-Wide       Calls Family       CoV Ranking       Methods &
+[14] suggested static analysis for improving existing logging                          Call Stack
+                                                                                       Monitoring
+                                                                                                           Group
+                                                                                                      Identification &
+                                                                                                                           Of Execution
+                                                                                                                               Time
+                                                                                                                                            System Calls
+                                                                                                                                             List Cutoff
+code. Yao et al. [11] and Li et al. [15] proposed using                                                  Ranking
+
+deep learning to generate features from source code and
+adding logging statements. Li et al. [10] proposed a deep                                                                 Change      No     Software Or  Yes
+                                                                                                                         Detection         System Updates
+learning framework to suggest logging locations. Rivera et al.                                                            Phase             Or Changes?
+[16] proposed injecting logging instructions through Aspect-
+Oriented Programming.
+   Dynamic analysis methods were also proposed by Ates et al.
+[8] with a real-time adaptive tracing framework, Zhang et al.
+[13] with K-Means based adaptive instrumentation, and Sun                             Fig. 1. Pre-Testing, Method Selection & Ranking Methodology
+et al. [12] with loop identification for online tracing. Dai et al.
+[17] and Yao et al. [18] suggested methods for recommending
+                                                                               child methods (shown in Figure 2). The groups with the most
+log variables, while Li et al. [19] proposed setting log levels
+                                                                               heavily used methods are prioritized for monitoring.
+using ordinal based neural networks.
+                                                                                  The methods and system calls are also ranked based on
+   Our review of related works highlights limitations in dy-
+                                                                               the Coefficient of Variation (CoV) of their execution time,
+namic analysis using techniques of clustering and anomaly-
+                                                                               considering methods with higher standard deviation to be
+based methods in detecting changes in the normal behavior of
+                                                                               more likely to cause performance fluctuations. This approach
+the system or application, as well as difficulties in accurately
+                                                                               prioritizes monitoring of the most volatile or fluctuating groups
+distinguishing between expected and unexpected behavior
+                                                                               in the production environment.
+when there is a shift in normal behavior. These methods also
+                                                                                  To effectively monitor the performance of a large applica-
+tend to be biased towards groups with smaller values and
+                                                                               tion, it is necessary to select a limited number of methods
+inadequate in handling changes that were once considered
+                                                                               to focus on, as monitoring all methods would be too costly.
+abnormal in the past but are considered normal in the present.
+                                                                               A reasonable cutoff number should be selected based on the
+Additionally, static analysis-based methods, although effective
+                                                                               overhead costs that we are willing to bear. An example could
+for general-purpose logging, lack runtime visibility to accu-
+                                                                               be to select the top 5% of the methods, upon ranking of method
+rately capture and address performance problems.
+                                                                               and system calls by their CoV. It is important to periodically
+                      III. M ETHODOLOGY                                        re-evaluate the list of methods to monitor, updating it with
+                                                                               newly introduced methods and removing depreciated ones, to
+   We propose a time-series trend-based adaptive execution                     ensure the relevance and accuracy of the monitoring data in
+tracing framework to address performance issues. Execution                     the production environment.
+tracing can be resource-intensive, so we aim to minimize                          Figure 2 illustrates the Training Phase process. The record
+overhead by selectively tracing only the most relevant meth-                   function of Perf allows us to directly determine the method that
+ods. Our approach involves: identifying suspicious methods                     initiated a call to the next method. For this example, we have
+through stress tests, ranking methods based on their probable                  used a sampling rate of 10 milliseconds. The figure shows that
+performance impact, observing the execution time of selected                   MethodA() called MethodB() in the first call stack, forming
+methods, and activating tracepoints to record data upon detect-                a family group of A–B with a count of two. Next, we sort
+ing changes. The architecture of our method is illustrated in                  all family groups based on their count in descending order.
+Figure 1 and 3 and further explained in subsequent sections.                   To find the execution time of MethodA(), we observe that it
+                                                                               appears in the first two call stacks but not the third, so we
+A. Pre-Testing and Methods Selection                                           can estimate its execution time to be 20 milliseconds (10ms +
+   In order to uncover potential performance issues, the ap-                   10ms) during its first call. After calculating the execution time
+plication undergoes a stress test, simulating high resource                    for all methods, we calculate their CoV values to rank them
+competition and increasing the load on the system CPU,                         based on their fluctuation rate. Finally, we determine a method
+memory, disk, and network. During the stress test, call stack                  list cutoff value by only keeping the most volatile methods.
+data is collected at regular intervals and analyzed to document                   However, although the identified method calls could be
+all relevant method and system calls. The collected data is                    correlated with bugs or performance issues, they are not neces-
+then transformed into a time-series representation of execution                sarily the main cause of the problems as it could be very well
+time, which is examined for trends and patterns that could                     be a normal behavior of such method calls to fluctuate based
+indicate performance issues.                                                   on the tasks they handle. At this stage, we simply identify the
+   The method and system calls are grouped into family groups                  most fluctuating method calls and those contributing the most
+based on their relationship to one another, and the groups are                 to latency and mark them as worth monitoring in runtime. It
+ranked based on the number of calls between the parent and                     is important to note that our goal is not to detect performance
+
+
+
+                                                                           105
+
+          Authorized licensed use limited to: Brock University. Downloaded on March 06,2026 at 19:37:43 UTC from IEEE Xplore. Restrictions apply.
+                                                             Call Stack Snapshots
+           10ms                 20ms                 30ms                 40ms                    50ms                     60ms                     70ms
+
+        MethodA()           MethodA()            MethodX()            MethodA()              MethodX()                MethodX()               MethodX()
+
+                            MethodB()            MethodY()                                   MethodY()                MethodY()               MethodY()
+        MethodB()                                                     MethodB()
+                            MethodC()            MethodZ()                                   MethodZ()                 MethodZ()               MethodZ()
+        MethodC()                                                     MethodC()
+                            MethodD()            MethodQ()                                   MethodQ()                MethodQ()               MethodQ()
+
+             Initial Family              Ranked By             Identifying Method Calls  Ranked Family    Selection Of Methods
+              Group List               Number Of Calls              Execution Time      Group List By CoV   After List Cutoff
+             A       B= 2                A      B= 2           A = [ 20ms, 10ms, ... ]      X      Y
+                                                               B = [ 20ms, 10ms, ... ]                              X
+             B       C= 2                B      C= 2                                        Y      Z
+                                                               C = [ 20ms, 10ms, ... ]                              Y
+             C       D= 1                Z      Q= 2                                        Z      Q
+                                                               X = [ 10ms, 30ms, ... ]                              Z
+             X       Y= 2                X      Y= 2                                        A      B
+                                                               Y = [ 10ms, 30ms, ... ]
+             Y       Z= 2                Y      Z= 2                                        B      C
+                                                                Z = [ 10ms, 30ms, ... ]
+             Z       Q= 2                C      D= 1           Q = [ 10ms, 30ms, ... ]      C      D
+
+
+                                        Fig. 2. Family Group Identification & Method Selection For Monitoring
+
+
+
+issues at this stage or in runtime. We assume that the program                 based on the sensitive nature of the application in question
+has already been tested functionally and non-functionally and                  and how tolerable it is to performance deviation. Figure 3
+that any bugs have already been identified and fixed. Our                      illustrates a summarized flow diagram for the change detection
+objective is to find sufficient candidates to monitor in runtime               phase.
+so that we can detect any significant changes in behavior and
+use that information for tracing configuration adjustments.
+                                                                                                                   Change Detection &
+B. Change Detection Phase                                                                                           Adaptive Tracing
+   In order to change tracing configuration, a decision mecha-                        Methods &            Monitor Selected        Extract Execution           Detect For
+nism has been implemented. The mechanism uses two factors,                           System Calls
+                                                                                         List
+                                                                                                             Methods &
+                                                                                                              Syscalls
+                                                                                                                                   Time Of Methods
+                                                                                                                                      & Syscalls
+                                                                                                                                                             Trend Changes
+                                                                                                                                                               With ARIMA
+the detection of changes through Autoregressive Integrated
+Moving Average (ARIMA) [20] models and a pre-determined
+threshold value. ARIMA is a statistical method that predicts                         Yes
+                                                                                              Anomaly
+                                                                                            Score Higher         Update Anomaly       Increase         Yes     Change
+                                                                                                                                                                Above
+future values based on historical data. The proposed parame-                                    Than                 Score          Anomaly Score
+                                                                                                                                                              Threshold?
+                                                                                             Threshold?
+ters for the ARIMA model contains the number of lag observa-
+tions, degree of differencing and the moving average window                                         No                                                         No
+
+size to be all the value of 1. A first-order ARIMA(1,1,1) is se-                             Enable Related           Disable Related
+                                                                                                                                               Reduce
+                                                                                           Tracing Instruments      Tracing Instruments
+lected to predict linear trends, where deviations from linearity                              & Tracepoints            & Tracepoints
+                                                                                                                                            Anomaly Score
+
+would indicate potential performance issues. The equation for
+the model is detailed in [21]. Insignificant changes are filtered
+out using an anomaly score to avoid unnecessary tracing                                       Fig. 3. Change Detection Phase & Adaptive Tracing
+configuration changes for small, non-threatening changes.
+   In our proposed framework, the ARIMA models are fed
+with time-series data constructed from the execution times of                     The anomaly score function, inspired by a previous work
+the methods and system calls. The models use data up to                        in [22], measures the significance of anomalous execution
+timet−1 to predict the execution time at time timet . If the                   time data. It assigns a score to methods or system calls
+difference between the actual execution time at timet and the                  based on the frequency of unusual readings and adjusts the
+predicted value exceeds the threshold value, it is determined                  score accordingly. A threshold is used to identify potentially
+that there is a deviation from the expected trend, indicating                  affected methods and system calls and add or remove them
+a change. Conversely, if the difference is below the threshold                 from the list based on whether the score exceeds or falls
+value, it is determined that the change is not significant enough              below the threshold. The threshold is set based on the specific
+and the function is behaving normally. The threshold is set                    requirements of the application.
+
+
+
+                                                                           106
+
+          Authorized licensed use limited to: Brock University. Downloaded on March 06,2026 at 19:37:43 UTC from IEEE Xplore. Restrictions apply.
+                                                                  following, we will describe one of the evaluations mentioned
+                                                                  above. This case study was performed on the multi-threaded
+anomalyScore = (β×isAnomaly)+((1−β)×anomalyScore)
+                                                                  and complex Firefox web browser to investigate a bug (Bug
+                                                              (1)
+                                                                  1768481) reported in Bugzilla [24] that stated Firefox expe-
+   The β value is a decaying factor that controls the rate of
+                                                                  riences lags when loading larger PDF files even if they are
+change for the rise or fall of the anomaly score and should be
+                                                                  stored locally. The bug report revealed that the cause of the
+set based on the system’s sensitivity or the sensitive nature of
+                                                                  problem was a particular method call related to VSync, which
+the tasks it performs. The isAnomaly is a boolean flag that
+                                                                  aligns the refresh rate between the graphics processor and the
+represents if the execution time reading was anomalous or not
+                                                                  monitor.
+(i.e., out of bound from the ARIMA model’s prediction).
+   We preferred the ARIMA method over most machine learn- A. Study Setup
+ing or deep learning techniques because it operates based on         In this study, we used the Firefox web browser built from
+past trends and patterns but also adjusts to new stable changes source with the perf flag enabled [25], which enables JIT
+as the moving average shifts. This also makes it easier to detect profiling. The browser was loaded with two different sized
+and respond to any unexpected deviations or breaks in the PDF files to explore all related methods and system calls.
+trend. As a result, ARIMA can provide more accurate and Perf was used to record the call stacks and analyze the data.
+reliable predictions for our use case while avoiding overfitting 8,231 unique family groups of method and system calls were
+the recent data. Additionally, ARIMA requires less computa- established, sorted and ranked based on the number of calls
+tional resources compared to other more complex algorithms, and execution time. The top 5% (410) of these family groups
+making it a more feasible and practical option for our adaptive were selected as the most volatile and impactful for monitoring
+tracing use case, which needs continuous periodic analysis for and performance analysis.
+its decision-making.                                                 In order to collect the execution time of the method calls,
+C. Trace Configuration Change                                                  we have used a split of ten-millisecond snapshots while
+   The goal of this phase is to adjust tracing configuration                   recording call stacks with perf. Figure 2 shows ”Identifying
+to collect enough data for the early detection of potential                    Method Calls Execution Time” which is a representation of
+performance problems. The proposed multi-level adaptive trac-                  extracting the execution time from the call stack. This idea was
+ing method enables modifications to trace configurations at                    inspired by Microsoft’s research named Stackmine [26]. When
+both the application and system levels. When the result from                   a method call no longer appears in a consecutive call stack,
+the change detection phase is received, the tracing for the                    we assume that the execution time of the method call is the
+associated family groups of the impacted methods will be                       summation of the last continuous blocks of ten milliseconds
+initiated in this stage, reaching a pre-set depth limit such as                where it was consecutively visible. We have selected the ten-
+20.                                                                            millisecond window based on the sensitivity of the application.
+   System-level tracing is performed by monitoring the po-                     A delay of 10 milliseconds is not so drastic as to cause alerts
+tential suspicious system calls, as determined by the change                   for a browser application. Our source codes are accessible
+detection phase and the corresponding kernel events. The                       from our GitHub repository 1 .
+Linux system call table [23] is used to map and translate                      B. Change Detection
+the system call to the corresponding kernel-level component,
+                                                                                  We used an adaptive decision-making process (illustrated
+which can then be targeted for further kernel-level tracing.
+                                                                               in Figure 4) to selectively trace methods only when necessary,
+On the other hand, application-level tracing can be performed
+                                                                               resulting in a significant reduction in tracing overhead. In the
+directly without any translation needed by enabling tracepoints
+                                                                               course of investigating the Bugzilla report [24] of delays in
+for the application methods and their family members.
+                                                                               Firefox while loading larger PDF files, a specific method,
+ IV. C ASE STUDY RESULTS , EVALUATION AND DISCUSSION                           ”mozilla::VsyncRefreshDriverTimer::RunRefreshDrivers,”
+   The case study assessment of the method has been suc-                       was identified as the cause of the delays, and its execution
+cessful in recording enough data to address various real-world                 time was found to exceed 10 milliseconds, with instances
+performance bugs in Firefox such as:                                           exceeding 500 milliseconds observed when loading larger
+   • Bug 1768481: Identify issues with driver and appli-
+                                                                               PDFs although stored locally. The family group depth level
+     cation communication.                                                     for tracing was set to 20 which is adjustable based on how
+   • Bug 1637586: Identify specific methods in application
+                                                                               granular and detailed data we are willing to collect.
+     source code causing performance problems for animation                    C. Discussion & Limitations
+     rendering.
+                                                                                 The proposed method has demonstrated its effectiveness in
+   • Bug 1776469: Identify system-level components and
+                                                                               identifying a problematic method in the case study of the
+     system calls responsible for performance problems re-
+                                                                               Firefox browser. Our method was able to narrow down the
+     lated to network connectivity and DNS.
+                                                                               number of traced method calls to 410 from a pool of 8,231,
+   The causes of performance issues were successfully found
+for all the mentioned case studies using our method. In the                       1 https://github.com/ak19qp/sera2023/
+
+
+
+
+                                                                           107
+
+          Authorized licensed use limited to: Brock University. Downloaded on March 06,2026 at 19:37:43 UTC from IEEE Xplore. Restrictions apply.
+                                                                               time of application-level methods and system calls. The
+                                                                               approach assumes that a change in execution time’s trend
+                                                                               indicates an underlying performance issue, supported by case
+                                                                               study and its results. Our case study results showed that the
+                                                                               proposed approach successfully traced and recorded important
+                                                                               data related to three different categories of recreated perfor-
+                                                                               mance problem from Bugzilla reports of Firefox and were
+                                                                               able to pinpoint the specific method call responsible for the
+                                                                               performance issues.
+                                                                                  This research work has demonstrated that the proposed
+                                                                               method works for adaptively tracing systems and application
+               Fig. 4. Adaptive Decision For Tracepoint                        performance issues. However, several improvements need to
+                                                                               be addressed. We need to introduce an adaptive threshold for
+                               TABLE I
+                                                                               the anomaly score, adjusting the ARIMA method’s threshold
+                      C ASE S TUDY E VALUATION                                 dynamically, handling the method list cutoff value adaptively
+                                                                               base on allowable costs, and finding a more accurate way to
+ Evaluation Criteria                                      Values
+ Was The Bug Detected?                                      Yes                calculate execution time. We would also explore dynamic cost
+ Culprit Method                                      RunRefreshDrivers()       selection for monitoring the percentage of method calls. These
+ Useful Unique Changes Detected                             22%                improvements would ensure better adaptive tracing optimality
+ Percentage Of Samples Traced                               56%
+                                                                               and reduce important data loss. For future work, we would
+ Monitoring Overhead Reduced By CoV Ranking                 95%
+ Tracing Overhead Reduced By Change Detection               44%                be using LTTng, a tracing tool, which would allow us to
+                                                                               execute the tracing configuration suggestions in realtime on
+                                                                               tracepoints.
+reducing the tracing overhead significantly. The evaluation cri-
+                                                                                                         ACKNOWLEDGMENT
+teria and reduction in overhead achieved through ARIMA for
+change detection are presented in Table I. The results highlight                 The support of the Natural Sciences and Engineering Re-
+the significant reduction in overhead achieved through the                     search Council of Canada (NSERC), Mitacs, Ciena, Brock
+proposed method.                                                               VPMI and FedDev Ontario is gratefully acknowledged.
+   In terms of the informativeness of our method, we could                                                    R EFERENCES
+see in Figure 4 that the major changes in the culprit method
+                                                                                [1] N. Ayewah, W. Pugh, D. Hovemeyer, J. D. Morgenthaler, and J. Penix,
+call were successfully recorded along with 20 methods of                            “Using static analysis to find bugs,” IEEE software, vol. 25, no. 5, pp.
+its family groups to have sufficient data collected related                         22–29, 2008.
+to the issue. The suggested areas for trace logging show                        [2] T. Ball, “The concept of dynamic analysis,” in Software Engineer-
+                                                                                    ing—ESEC/FSE’99. Springer, 1999, pp. 216–234.
+enough earliness of capturing the relevant data to identify the                 [3] D. Yuan, S. Park, and Y. Zhou, “Characterizing logging practices
+problems. The monitoring of the method calls’ execution time                        in open-source software,” in 2012 34th international conference on
+using perf caused only an average of 1% or less increase in                         software engineering (ICSE). IEEE, 2012, pp. 102–112.
+                                                                                [4] B. Cantrill, M. W. Shapiro, A. H. Leventhal et al., “Dynamic instrumen-
+CPU utilization overhead compared to the baseline (without                          tation of production systems.” in USENIX Annual Technical Conference,
+any monitoring), which is very negligible.                                          General Track, 2004, pp. 15–28.
+   However, we faced a few challenges during the imple-                         [5] A. Parker, Distributed Tracing in Practice. Van Duuren Media, 2020.
+                                                                                [6] R. Ewaschuk, “Google - Site Reliability Engineering.” [Online].
+mentation stage of our work. Firstly, the threshold values to                       Available: sre.google/sre-book/monitoring-distributed-systems
+define an acceptable fluctuation away from ARIMA as well                        [7] J.       Ellingwood,         “An       Introduction       to       Met-
+as the anomaly score’s β value had to be manually tested                            rics,     Monitoring,      and     Alerting,”     12     2017.     [On-
+                                                                                    line]. Available: https://www.digitalocean.com/community/tutorials/an-
+around and selected. Therefore, these values became system                          introduction-to-metrics-monitoring-and-alerting
+and application specific. The threshold value and the β value                   [8] E. Ates, L. Sturmann, M. Toslali, O. Krieger, R. Megginson, A. K.
+found from one system wouldn’t make sense in another given                          Coskun, and R. R. Sambasivan, “An automated, cross-layer instrumen-
+                                                                                    tation framework for diagnosing performance problems in distributed
+that it handles different processes and tasks. It was also a                        applications,” in Proceedings of the ACM Symposium on Cloud Com-
+challenge to decide on the method list cutoff number. For our                       puting, 2019, pp. 165–170.
+case studies, we have used a hard coded 5%, however, in much                    [9] T. M. Peiris and J. H. Hill, “Adapting system execution traces for
+                                                                                    validation of distributed system qos properties,” in 2012 IEEE 15th
+more complex systems this needs to be addressed along with                          International Symposium on Object/Component/Service-Oriented Real-
+a dynamic auto-adjustable depth selection for family groups                         Time Distributed Computing. IEEE, 2012, pp. 162–171.
+to trace.                                                                      [10] Z. Li, T.-H. Chen, and W. Shang, “Where shall we log? studying
+                                                                                    and suggesting logging locations in code blocks,” in Proceedings of
+                                                                                    the 35th IEEE/ACM International Conference on Automated Software
+             V. C ONCLUSION & F UTURE W ORK                                         Engineering, 2020, pp. 361–372.
+   We proposed an adaptive tracing mechanism that leverages                    [11] K. Yao, G. B. De Padua, W. Shang, C. Sporea, A. Toma, and S. Sajedi,
+                                                                                    “Log4perf: Suggesting and updating logging locations for web-based
+the concept of trend detection using autoregressive integrated                      systems’ performance monitoring,” Empirical Software Engineering,
+moving average (ARIMA) models to predict the execution                              vol. 25, pp. 488–531, 2020.
+
+
+
+
+                                                                           108
+
+          Authorized licensed use limited to: Brock University. Downloaded on March 06,2026 at 19:37:43 UTC from IEEE Xplore. Restrictions apply.
+[12] H. Sun, C. Zhang, H. Li, Z. Wu, L. Wu, and Y. Li, “Atos: Adaptive
+     program tracing with online control flow graph support,” IEEE Access,
+     vol. 7, pp. 127 495–127 510, 2019.
+[13] S. Zhang, D. Liu, L. Zhou, Z. Ren, and Z. Wang, “Diagnostic framework
+     for distributed application performance anomaly based on adaptive
+     instrumentation,” in 2020 2nd International Conference on Computer
+     Communication and the Internet (ICCCI). IEEE, 2020, pp. 164–169.
+[14] D. Yuan, J. Zheng, S. Park, Y. Zhou, and S. Savage, “Improving software
+     diagnosability via log enhancement,” ACM Transactions on Computer
+     Systems (TOCS), vol. 30, no. 1, pp. 1–28, 2012.
+[15] J. Li, P. He, J. Zhu, and M. R. Lyu, “Software defect prediction via
+     convolutional neural network,” in 2017 IEEE international conference
+     on software quality, reliability and security (QRS). IEEE, 2017, pp.
+     318–328.
+[16] F. Rivera-Ortiz and L. Pasquale, “Towards automated logging for
+     forensic-ready software systems,” in 2019 IEEE 27th International
+     Requirements Engineering Conference Workshops (REW). IEEE, 2019,
+     pp. 157–163.
+[17] S. Dai, Z. Luan, S. Huang, C. Fung, H. Wang, H. Yang, and D. Qian,
+     “Reval: Recommend which variables to log with pre-trained model and
+     graph neural network,” IEEE Transactions on Network and Service
+     Management, 2022.
+[18] C. Yao, D. Agrawal, G. Chen, B. C. Ooi, and S. Wu, “Adaptive
+     logging: Optimizing logging and recovery costs in distributed in-memory
+     databases,” in Proceedings of the International Conference on Manage-
+     ment of Data, 2016, pp. 1119–1134.
+[19] Z. Li, H. Li, T.-H. Chen, and W. Shang, “Deeplv: Suggesting log
+     levels using ordinal based neural networks,” in 2021 IEEE/ACM 43rd
+     International Conference on Software Engineering (ICSE). IEEE, 2021,
+     pp. 1461–1472.
+[20] S. L. Ho and M. Xie, “The use of arima models for reliability forecasting
+     and analysis,” Computers & industrial engineering, vol. 35, no. 1-2, pp.
+     213–216, 1998.
+[21] B. K. Nelson, “Time series analysis using autoregressive integrated
+     moving average (arima) models,” Academic emergency medicine, vol. 5,
+     no. 7, pp. 739–744, 1998.
+[22] J. Ehlers, A. van Hoorn, J. Waller, and W. Hasselbring, “Self-adaptive
+     software system monitoring for performance anomaly localization,” in
+     Proceedings of the 8th ACM international conference on Autonomic
+     computing, 2011, pp. 197–200.
+[23] F. Valsorda, “Searchable linux syscall table for x86 and x86 64 —
+     pytux.” [Online]. Available: https://filippo.io/linux-syscall-table/
+[24] clessili,   “Bug     1768481,”     5      2022.     [Online].     Available:
+     https://bugzilla.mozilla.org/show bug.cgi?id=1768481
+[25] Mozilla,     “Jit   profiling    with      perf     —     firefox    source
+     docs documentation.” [Online]. Available: https://firefox-source-
+     docs.mozilla.org/performance/jit profiling with perf.html
+[26] S. Han, Y. Dang, S. Ge, D. Zhang, and T. Xie, “Performance debugging
+     in the large via mining millions of stack traces,” in 2012 34th Interna-
+     tional Conference on Software Engineering (ICSE). IEEE, 2012, pp.
+     145–155.
+
+
+
+
+                                                                                109
+
+            Authorized licensed use limited to: Brock University. Downloaded on March 06,2026 at 19:37:43 UTC from IEEE Xplore. Restrictions apply.

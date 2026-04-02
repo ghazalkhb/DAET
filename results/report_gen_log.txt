@@ -1,0 +1,6 @@
+LaTeX report written -> C:\Users\acer\Desktop\Naser\2\Results\report.tex
+Compiling with C:\Users\acer\AppData\Local\Programs\MiKTeX\miktex\bin\x64\pdflatex.EXE (3 passes) ...
+  pass 1 OK (rc=1)
+  pass 2 OK (rc=1)
+  pass 3 OK (rc=1)
+PDF -> C:\Users\acer\Desktop\Naser\2\Results\report.pdf

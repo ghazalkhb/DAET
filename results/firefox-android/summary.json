@@ -1,0 +1,155 @@
+{
+  "dataset": "firefox-android",
+  "tuned_params": {
+    "sma_window": 40,
+    "ewma_alpha": 0.05,
+    "transformer_window": 20,
+    "transformer_dmodel": 16
+  },
+  "val_tuning": {
+    "sma": {
+      "5": 0.0756,
+      "10": 0.0901,
+      "15": 0.0971,
+      "20": 0.1003,
+      "25": 0.0958,
+      "30": 0.0976,
+      "40": 0.102,
+      "50": 0.092
+    },
+    "ewma": {
+      "0.05": 0.0978,
+      "0.1": 0.0947,
+      "0.15": 0.0841,
+      "0.2": 0.0828,
+      "0.25": 0.0793,
+      "0.3": 0.0749,
+      "0.4": 0.0745,
+      "0.5": 0.0709
+    },
+    "transformer": {
+      "(10, 8)": 0.0708,
+      "(10, 16)": 0.0763,
+      "(10, 32)": 0.0721,
+      "(20, 8)": 0.0744,
+      "(20, 16)": 0.0795,
+      "(20, 32)": 0.0738,
+      "(30, 8)": 0.07,
+      "(30, 16)": 0.0782,
+      "(30, 32)": 0.0754
+    }
+  },
+  "methods": {
+    "ARIMA(1,1,1)": {
+      "n_signatures": 342,
+      "n_with_alerts": 136,
+      "mean_precision": 0.056,
+      "std_precision": 0.0,
+      "mean_recall": 0.2573,
+      "std_recall": 0.0,
+      "mean_f1": 0.0893,
+      "std_f1": 0.0,
+      "mean_far": 0.056253,
+      "std_far": 0.0,
+      "mean_storage_reduc": 0.903,
+      "detection_rate_pct": 66.18,
+      "n_seeds": 1,
+      "per_seed": []
+    },
+    "EWMA(a=0.05)": {
+      "n_signatures": 342,
+      "n_with_alerts": 136,
+      "mean_precision": 0.0676,
+      "std_precision": 0.0,
+      "mean_recall": 0.2632,
+      "std_recall": 0.0,
+      "mean_f1": 0.1033,
+      "std_f1": 0.0,
+      "mean_far": 0.052155,
+      "std_far": 0.0,
+      "mean_storage_reduc": 0.8943,
+      "detection_rate_pct": 67.65,
+      "n_seeds": 1,
+      "per_seed": []
+    },
+    "LAST": {
+      "n_signatures": 342,
+      "n_with_alerts": 136,
+      "mean_precision": 0.0455,
+      "std_precision": 0.0,
+      "mean_recall": 0.2091,
+      "std_recall": 0.0,
+      "mean_f1": 0.0718,
+      "std_f1": 0.0,
+      "mean_far": 0.054508,
+      "std_far": 0.0,
+      "mean_storage_reduc": 0.8915,
+      "detection_rate_pct": 54.41,
+      "n_seeds": 1,
+      "per_seed": []
+    },
+    "SMA(w=40)": {
+      "n_signatures": 342,
+      "n_with_alerts": 136,
+      "mean_precision": 0.0661,
+      "std_precision": 0.0,
+      "mean_recall": 0.2895,
+      "std_recall": 0.0,
+      "mean_f1": 0.1039,
+      "std_f1": 0.0,
+      "mean_far": 0.054695,
+      "std_far": 0.0,
+      "mean_storage_reduc": 0.8826,
+      "detection_rate_pct": 72.79,
+      "n_seeds": 1,
+      "per_seed": []
+    },
+    "Transformer(w=20,d=16)": {
+      "n_signatures": 342,
+      "n_with_alerts": 136,
+      "mean_precision": 0.0688,
+      "std_precision": 0.0018,
+      "mean_recall": 0.2924,
+      "std_recall": 0.0024,
+      "mean_f1": 0.1051,
+      "std_f1": 0.002,
+      "mean_far": 0.065694,
+      "std_far": 0.000676,
+      "mean_storage_reduc": 0.6721,
+      "detection_rate_pct": 74.41,
+      "n_seeds": 5,
+      "per_seed": [
+        {
+          "seed": 42,
+          "mean_f1": 0.1044,
+          "mean_precision": 0.0683,
+          "mean_recall": 0.2909
+        },
+        {
+          "seed": 123,
+          "mean_f1": 0.1029,
+          "mean_precision": 0.0669,
+          "mean_recall": 0.2968
+        },
+        {
+          "seed": 456,
+          "mean_f1": 0.1035,
+          "mean_precision": 0.0672,
+          "mean_recall": 0.2895
+        },
+        {
+          "seed": 789,
+          "mean_f1": 0.1064,
+          "mean_precision": 0.0695,
+          "mean_recall": 0.2924
+        },
+        {
+          "seed": 1024,
+          "mean_f1": 0.1083,
+          "mean_precision": 0.0719,
+          "mean_recall": 0.2924
+        }
+      ]
+    }
+  }
+}
