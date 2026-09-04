@@ -1,0 +1,68 @@
+{
+  "experiment": "detector-specific beta/theta fairness tuning",
+  "completed_at_utc": "2026-09-03T21:54:31.760187+00:00",
+  "data_source": {
+    "record": "https://zenodo.org/records/14927532",
+    "doi": "10.5281/zenodo.14927532",
+    "archive": "data.zip",
+    "archive_md5": "a6f6d41f262dbb678cdb469d3d94aa13",
+    "firefox_android_files": 342,
+    "mozilla_beta_files": 1477
+  },
+  "selection_rule": "maximum mean per-signature validation F1; ties resolved by minimum L1 distance to beta=0.30, theta=0.30",
+  "test_policy": "selected validation pair evaluated once on held-out test",
+  "split": {
+    "train": 0.6,
+    "validation": 0.2,
+    "test": 0.2
+  },
+  "beta_grid": [
+    0.1,
+    0.2,
+    0.3,
+    0.5,
+    0.7
+  ],
+  "theta_grid": [
+    0.1,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.4,
+    0.5
+  ],
+  "datasets": [
+    "firefox-android",
+    "mozilla-beta"
+  ],
+  "methods": [
+    "ARIMA",
+    "LAST",
+    "SMA",
+    "EWMA",
+    "Transformer"
+  ],
+  "transformer_seeds": [
+    42,
+    123,
+    456,
+    789,
+    1024
+  ],
+  "signature_limit": null,
+  "alerts_sha256": "463d48b7df08aad0ee9432322a1ee5adea30700ef6f9f590ac9209b7eaf9f784",
+  "canonical_summary_sha256": "1ede1f8af72759d81e6bd3befda1996b6f73d9c1859a3b906e31a6810148dc9b",
+  "environment": {
+    "python": "3.9.6 (default, May 22 2026, 11:13:45) \n[Clang 21.0.0 (clang-2100.1.1.101)]",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "numpy": "1.24.4",
+    "pandas": "2.0.3",
+    "scipy": "1.11.4",
+    "statsmodels": "0.13.5",
+    "torch": "2.4.1",
+    "torch_threads": 2
+  },
+  "elapsed_seconds": 14.281538009643555,
+  "elapsed_scope": "current invocation; completed checkpoints may have been reused"
+}

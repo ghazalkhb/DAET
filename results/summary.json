@@ -1,0 +1,142 @@
+{
+  "dataset": {
+    "total_alerts": 17989,
+    "regression_alerts": 7612,
+    "unique_regression_sigs": 3764,
+    "timeseries_files": 342,
+    "matched_signatures": 214,
+    "converted_vectors": 214
+  },
+  "settings": {
+    "BETA": 0.3,
+    "THRESHOLD_ANOMALY": 0.3,
+    "K_SIGMA": 3.0,
+    "THR_WINDOW": 30,
+    "ARIMA_ORDER": [
+      1,
+      1,
+      1
+    ],
+    "ARIMA_MIN_HISTORY": 20,
+    "ARIMA_WINDOW": 60,
+    "EWMA_ALPHA": 0.3,
+    "SMA_WINDOW": 20,
+    "TRAIN_RATIO": 0.7,
+    "TOL": 5
+  },
+  "runtimes_sec": {
+    "ARIMA": 807.1,
+    "LAST": 23.8,
+    "SMA": 29.8,
+    "EWMA": 23.7,
+    "Transformer": 11061.1
+  },
+  "aggregate_metrics": {
+    "ARIMA": {
+      "n_signatures": 214,
+      "alerted_sigs": 150,
+      "detected_sigs": 133,
+      "detection_rate_pct": 88.67,
+      "mean_storage_reduc": 0.8975,
+      "mean_enabled_frac": 0.1025,
+      "mean_unique_changes": 10.28,
+      "mean_precision": 0.1056,
+      "mean_recall": 0.6059,
+      "mean_f1": 0.1736,
+      "mean_false_alarm_rate": 0.05278,
+      "mean_delay": -2.8,
+      "total_runtime_ms": 806412.7,
+      "mean_peak_mem_KB": 1422.6
+    },
+    "LAST": {
+      "n_signatures": 214,
+      "alerted_sigs": 150,
+      "detected_sigs": 109,
+      "detection_rate_pct": 72.67,
+      "mean_storage_reduc": 0.8942,
+      "mean_enabled_frac": 0.1058,
+      "mean_unique_changes": 9.96,
+      "mean_precision": 0.0793,
+      "mean_recall": 0.4844,
+      "mean_f1": 0.133,
+      "mean_false_alarm_rate": 0.052295,
+      "mean_delay": -2.34,
+      "total_runtime_ms": 23243.5,
+      "mean_peak_mem_KB": 83.8
+    },
+    "SMA": {
+      "n_signatures": 214,
+      "alerted_sigs": 150,
+      "detected_sigs": 144,
+      "detection_rate_pct": 96.0,
+      "mean_storage_reduc": 0.8883,
+      "mean_enabled_frac": 0.1117,
+      "mean_unique_changes": 10.18,
+      "mean_precision": 0.1116,
+      "mean_recall": 0.6573,
+      "mean_f1": 0.1855,
+      "mean_false_alarm_rate": 0.051913,
+      "mean_delay": -3.2,
+      "total_runtime_ms": 29271.7,
+      "mean_peak_mem_KB": 90.3
+    },
+    "EWMA": {
+      "n_signatures": 214,
+      "alerted_sigs": 150,
+      "detected_sigs": 124,
+      "detection_rate_pct": 82.67,
+      "mean_storage_reduc": 0.91,
+      "mean_enabled_frac": 0.09,
+      "mean_unique_changes": 10.72,
+      "mean_precision": 0.0902,
+      "mean_recall": 0.5615,
+      "mean_f1": 0.1506,
+      "mean_false_alarm_rate": 0.055754,
+      "mean_delay": -2.49,
+      "total_runtime_ms": 23128.9,
+      "mean_peak_mem_KB": 83.9
+    },
+    "Transformer": {
+      "n_signatures": 214,
+      "alerted_sigs": 150,
+      "detected_sigs": 72,
+      "detection_rate_pct": 48.0,
+      "mean_storage_reduc": 0.686,
+      "mean_enabled_frac": 0.314,
+      "mean_unique_changes": 2.66,
+      "mean_precision": 0.2078,
+      "mean_recall": 0.3341,
+      "mean_f1": 0.2293,
+      "mean_false_alarm_rate": 0.013004,
+      "mean_delay": -42.06,
+      "total_runtime_ms": 11024399.4,
+      "mean_peak_mem_KB": 633.0
+    }
+  },
+  "plot_sigs": [
+    "4669835",
+    "4653879",
+    "4653880",
+    "4653881",
+    "4653882",
+    "4653883"
+  ],
+  "transformer_version": "v3",
+  "v3_improvements": {
+    "adaptive_threshold": {
+      "alpha_mu": 0.15,
+      "alpha_var": 0.1,
+      "theta_percentile": 90
+    },
+    "learned_anomaly_score": {
+      "anom_head_hidden": 16,
+      "alpha_blend": 0.6,
+      "anom_epochs": 15
+    },
+    "grac": {
+      "hidden": 16,
+      "threshold": 0.5,
+      "epochs": 20
+    }
+  }
+}

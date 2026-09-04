@@ -1,0 +1,98 @@
+{
+  "firefox-android": {
+    "dataset": "firefox-android",
+    "n_total_sigs": 342,
+    "n_measured_sigs": 342,
+    "transformer_hp": {
+      "window": 20,
+      "d_model": 16,
+      "sma_w": 40,
+      "ewma_alpha": 0.05
+    },
+    "n_params": 2273,
+    "model_weight_KB": 8.88,
+    "trans_train": {
+      "mean_per_sig_s": 0.7481,
+      "std_per_sig_s": 0.4336,
+      "mean_epochs": 19.62,
+      "total_measured_s": 255.86,
+      "extrap_total_s": 255.86,
+      "mean_rss_delta_KB": 530.05,
+      "std_rss_delta_KB": 2777.45
+    },
+    "trans_infer": {
+      "mean_per_sig_s": 0.122822,
+      "mean_ms_per_step": 0.9819,
+      "std_ms_per_step": 0.3409,
+      "mean_rss_delta_KB": 3.19
+    },
+    "arima": {
+      "mean_fit_time_s": 0.1369,
+      "mean_fit_mem_KB": 7.91,
+      "mean_ms_per_step": 7.427,
+      "mean_infer_mem_KB": 2.74,
+      "total_measured_infer_s": 319.12,
+      "extrap_infer_s": 319.12
+    },
+    "sma": {
+      "mean_ms_per_step": 0.0882,
+      "mean_rss_delta_KB": 0
+    },
+    "ewma": {
+      "mean_ms_per_step": 0.06,
+      "mean_rss_delta_KB": 0
+    },
+    "last": {
+      "mean_ms_per_step": 0.0601,
+      "mean_rss_delta_KB": 0
+    }
+  },
+  "mozilla-beta": {
+    "dataset": "mozilla-beta",
+    "n_total_sigs": 1477,
+    "n_measured_sigs": 200,
+    "transformer_hp": {
+      "window": 10,
+      "d_model": 32,
+      "sma_w": 20,
+      "ewma_alpha": 0.05
+    },
+    "n_params": 8641,
+    "model_weight_KB": 33.75,
+    "trans_train": {
+      "mean_per_sig_s": 0.8334,
+      "std_per_sig_s": 0.1361,
+      "mean_epochs": 19.71,
+      "total_measured_s": 166.67,
+      "extrap_total_s": 1230.89,
+      "mean_rss_delta_KB": 155.84,
+      "std_rss_delta_KB": 665.45
+    },
+    "trans_infer": {
+      "mean_per_sig_s": 0.172597,
+      "mean_ms_per_step": 0.7768,
+      "std_ms_per_step": 0.1057,
+      "mean_rss_delta_KB": 2.18
+    },
+    "arima": {
+      "mean_fit_time_s": 0.137,
+      "mean_fit_mem_KB": 10.52,
+      "mean_ms_per_step": 5.056,
+      "mean_infer_mem_KB": 0.08,
+      "total_measured_infer_s": 224.02,
+      "extrap_infer_s": 1654.42
+    },
+    "sma": {
+      "mean_ms_per_step": 0.0536,
+      "mean_rss_delta_KB": 0.18
+    },
+    "ewma": {
+      "mean_ms_per_step": 0.0369,
+      "mean_rss_delta_KB": 0
+    },
+    "last": {
+      "mean_ms_per_step": 0.0375,
+      "mean_rss_delta_KB": 0
+    }
+  }
+}

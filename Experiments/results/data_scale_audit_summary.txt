@@ -1,0 +1,95 @@
+======================================================================
+  DATA-SCALE AUDIT REPORT
+  DAET Journal Paper Artifact (May 2026)
+======================================================================
+
+This audit supports the 'large-scale' wording in the paper by
+providing exact counts of signatures, telemetry points,
+detector-signature pairs, and train/val/test instances.
+
+Dataset: firefox-android
+--------------------------------------------------
+  CSV files found           : 342
+  Usable signatures (T≥30)  : 342
+  Valid for eval (T_test≥2) : 342
+  Unusable                  : 0
+
+  Total telemetry points    : 214,063
+  Series length (min/max)   : 208 / 2662
+  Series length (mean±std)  : 625.9 ± 143.7
+  Series length (median)    : 634.0
+  Series length (P25/P75)   : 591.0 / 673.0
+
+  Sigs with ≥1 alert        : 342 / 342 (100.0%)
+  Total mapped alerts       : 796
+
+  60/20/20 split (telemetry points):
+    Train (60%)             : 128,422
+    Val   (20%)             : 42,824
+    Test  (20%)             : 42,817
+
+  Detector–sig pairs        : 342 sigs × 5 methods = 1,710
+  Date range                : 2023-05-22 – 2024-03-18
+
+Dataset: mozilla-beta
+--------------------------------------------------
+  CSV files found           : 1477
+  Usable signatures (T≥30)  : 1477
+  Valid for eval (T_test≥2) : 1477
+  Unusable                  : 0
+
+  Total telemetry points    : 1,183,738
+  Series length (min/max)   : 73 / 3473
+  Series length (mean±std)  : 801.4 ± 198.0
+  Series length (median)    : 775.0
+  Series length (P25/P75)   : 737.0 / 896.0
+
+  Sigs with ≥1 alert        : 1477 / 1477 (100.0%)
+  Total mapped alerts       : 3597
+
+  60/20/20 split (telemetry points):
+    Train (60%)             : 710,239
+    Val   (20%)             : 236,715
+    Test  (20%)             : 236,784
+
+  Detector–sig pairs        : 1477 sigs × 5 methods = 7,385
+  Date range                : 2023-05-22 – 2024-05-08
+
+COMBINED (all datasets, canonical 60/20/20 protocol)
+--------------------------------------------------
+  Total signatures (eval)   : 1819
+  Total telemetry points    : 1,397,801
+  Total train points        : 838,661
+  Total val points          : 279,539
+  Total test points         : 279,601
+  Total mapped alerts       : 4393
+  Total detector-sig pairs  : 9,095
+
+CALIBRATION BASELINE (§5.1: 70/30, Firefox-Android)
+--------------------------------------------------
+  Signatures                : 342
+  Sigs with ≥1 alert        : 342
+  Total telemetry points    : 214,063
+  Train points              : 149,851
+  Test points               : 64,212
+  Total mapped alerts       : 796
+  Det–sig pairs (4 methods) : 1368
+
+LATEX TABLE EXCERPT (for paper §4.2 / Table 2 or new table)
+--------------------------------------------------
+
+\begin{table}[tbp]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Dataset} & \textbf{Sigs} & \textbf{Points} & \textbf{Alerts} & \textbf{Det--Sig Pairs} \\
+\midrule
+firefox\textendash{}android & 342 & 214,063 & 796 & 1,710 \\
+mozilla\textendash{}beta & 1,477 & 1,183,738 & 3597 & 7,385 \\
+\midrule
+Combined & 1,819 & 1,397,801 & 4393 & 9,095 \\
+\bottomrule
+\end{tabular}
+\caption{Large-scale evaluation dataset summary. Pairs = $N_{\text{sigs}} \times 5$ detectors; alerts are Treeherder-registered performance regressions mapped to the closest telemetry timestamp.}
+\label{tab:data_scale}
+\end{table}

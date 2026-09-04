@@ -1,0 +1,95 @@
+{
+  "experiment": "end_to_end_replay",
+  "description": "Adaptive trace-on replay experiment on Mozilla Firefox-Android telemetry. Simulates which data points would be recorded if the detector's decision output gated the sensor. Measures storage reduction, trigger frequency, and alert coverage across the four predictors on the chronological test set.",
+  "settings": {
+    "dataset": "Mozilla Firefox-Android Treeherder telemetry",
+    "methods": [
+      "ARIMA",
+      "LAST",
+      "SMA",
+      "EWMA"
+    ],
+    "tolerance_tau": 5,
+    "train_ratio": 0.7,
+    "total_signatures": 214
+  },
+  "aggregate_metrics": {
+    "ARIMA": {
+      "n_signatures": 214,
+      "n_alerted_sigs": 136,
+      "mean_storage_red": 0.8975,
+      "std_storage_red": 0.0731,
+      "median_storage_red": 0.9083,
+      "mean_trigger_freq": 0.058229,
+      "std_trigger_freq": 0.017825,
+      "median_trigger_freq": 0.05618,
+      "mean_activations": 10.28,
+      "n_alerted_with_cov": 136,
+      "mean_alert_cov": 0.8566,
+      "std_alert_cov": 0.3491,
+      "mean_precision": 0.0858,
+      "mean_interval_dur": 1.09,
+      "mean_burst_ratio": 0.5154
+    },
+    "LAST": {
+      "n_signatures": 214,
+      "n_alerted_sigs": 136,
+      "mean_storage_red": 0.8942,
+      "std_storage_red": 0.0303,
+      "median_storage_red": 0.896,
+      "mean_trigger_freq": 0.056519,
+      "std_trigger_freq": 0.014925,
+      "median_trigger_freq": 0.055866,
+      "mean_activations": 9.96,
+      "n_alerted_with_cov": 136,
+      "mean_alert_cov": 0.7022,
+      "std_alert_cov": 0.457,
+      "mean_precision": 0.0638,
+      "mean_interval_dur": 1.38,
+      "mean_burst_ratio": 0.6325
+    },
+    "SMA": {
+      "n_signatures": 214,
+      "n_alerted_sigs": 136,
+      "mean_storage_red": 0.8883,
+      "std_storage_red": 0.0603,
+      "median_storage_red": 0.8994,
+      "mean_trigger_freq": 0.057612,
+      "std_trigger_freq": 0.018306,
+      "median_trigger_freq": 0.055249,
+      "mean_activations": 10.18,
+      "n_alerted_with_cov": 136,
+      "mean_alert_cov": 0.9301,
+      "std_alert_cov": 0.2522,
+      "mean_precision": 0.0916,
+      "mean_interval_dur": 1.17,
+      "mean_burst_ratio": 0.5742
+    },
+    "EWMA": {
+      "n_signatures": 214,
+      "n_alerted_sigs": 136,
+      "mean_storage_red": 0.91,
+      "std_storage_red": 0.0271,
+      "median_storage_red": 0.9112,
+      "mean_trigger_freq": 0.06071,
+      "std_trigger_freq": 0.017398,
+      "median_trigger_freq": 0.058314,
+      "mean_activations": 10.72,
+      "n_alerted_with_cov": 136,
+      "mean_alert_cov": 0.7904,
+      "std_alert_cov": 0.4062,
+      "mean_precision": 0.0727,
+      "mean_interval_dur": 1.06,
+      "mean_burst_ratio": 0.4528
+    }
+  },
+  "plots_saved": {
+    "storage_reduction": "D:\\Naser\\2\\results\\replay\\plots\\replay_storage_reduction.png",
+    "trigger_frequency": "D:\\Naser\\2\\results\\replay\\plots\\replay_trigger_frequency.png",
+    "alert_coverage": "D:\\Naser\\2\\results\\replay\\plots\\replay_alert_coverage.png",
+    "efficiency_frontier": "D:\\Naser\\2\\results\\replay\\plots\\replay_efficiency_frontier.png",
+    "cdf_storage": "D:\\Naser\\2\\results\\replay\\plots\\replay_cdf_storage.png",
+    "summary_panel": "D:\\Naser\\2\\results\\replay\\plots\\replay_summary_panel.png",
+    "timeline_sample": "D:\\Naser\\2\\results\\replay\\plots\\replay_timeline_sample.png"
+  }
+}

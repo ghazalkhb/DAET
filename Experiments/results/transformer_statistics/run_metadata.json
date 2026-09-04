@@ -1,0 +1,20 @@
+{
+  "completed_at_utc": "2026-09-03T23:26:04.534481+00:00",
+  "inputs": {
+    "canonical_shared_gate": {
+      "path": "results/combined_detail.csv",
+      "sha256": "be57968f995eb0d0c173172e0493839f0d44b426dd166e3141b345cd3c34e2b4"
+    },
+    "detector_specific_gate": {
+      "path": "Experiments/results/gate_tuning/selected_test_detail.csv",
+      "sha256": "f0627669630ffcea42764787d8f2ebd4b479f10598d5ff6c484855e71799275f"
+    }
+  },
+  "environment": {
+    "python": "3.9.6 (default, May 22 2026, 11:13:45) \n[Clang 21.0.0 (clang-2100.1.1.101)]",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "numpy": "1.24.4",
+    "pandas": "2.0.3",
+    "scipy": "1.11.4"
+  }
+}

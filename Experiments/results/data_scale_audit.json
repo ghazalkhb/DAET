@@ -1,0 +1,98 @@
+{
+  "datasets": [
+    {
+      "dataset": "firefox-android",
+      "n_csv_files": 342,
+      "n_usable_sigs": 342,
+      "n_unusable_sigs": 0,
+      "n_valid_split": 342,
+      "total_telemetry_points": 214063,
+      "split_totals": {
+        "total_train_points": 128422,
+        "total_val_points": 42824,
+        "total_test_points": 42817,
+        "sum_all": 214063
+      },
+      "series_length": {
+        "min": 208,
+        "max": 2662,
+        "mean": 625.9,
+        "median": 634.0,
+        "std": 143.7,
+        "p25": 591.0,
+        "p75": 673.0
+      },
+      "alerts": {
+        "sigs_with_alerts": 342,
+        "sigs_without_alerts": 0,
+        "pct_with_alerts": 100.0,
+        "total_mapped_alerts": 796
+      },
+      "detector_sig_pairs": {
+        "n_methods_canonical": 5,
+        "total_pairs_canonical": 1710
+      },
+      "date_range": {
+        "start": "2023-05-22T10:57:11",
+        "end": "2024-03-18T04:05:15"
+      }
+    },
+    {
+      "dataset": "mozilla-beta",
+      "n_csv_files": 1477,
+      "n_usable_sigs": 1477,
+      "n_unusable_sigs": 0,
+      "n_valid_split": 1477,
+      "total_telemetry_points": 1183738,
+      "split_totals": {
+        "total_train_points": 710239,
+        "total_val_points": 236715,
+        "total_test_points": 236784,
+        "sum_all": 1183738
+      },
+      "series_length": {
+        "min": 73,
+        "max": 3473,
+        "mean": 801.4,
+        "median": 775.0,
+        "std": 198.0,
+        "p25": 737.0,
+        "p75": 896.0
+      },
+      "alerts": {
+        "sigs_with_alerts": 1477,
+        "sigs_without_alerts": 0,
+        "pct_with_alerts": 100.0,
+        "total_mapped_alerts": 3597
+      },
+      "detector_sig_pairs": {
+        "n_methods_canonical": 5,
+        "total_pairs_canonical": 7385
+      },
+      "date_range": {
+        "start": "2023-05-22T10:20:25",
+        "end": "2024-05-08T02:26:13"
+      }
+    }
+  ],
+  "calibration_baseline": {
+    "n_signatures": 342,
+    "n_with_alerts": 342,
+    "total_telemetry_points": 214063,
+    "total_train_points": 149851,
+    "total_test_points": 64212,
+    "total_alerts": 796,
+    "det_sig_pairs_4methods": 1368
+  },
+  "combined": {
+    "total_valid_sigs": 1819,
+    "total_telemetry_points": 1397801,
+    "total_train_points": 838661,
+    "total_val_points": 279539,
+    "total_test_points": 279601,
+    "total_alerts": 4393,
+    "total_det_sig_pairs": 9095,
+    "total_usable_sigs": 1819,
+    "n_datasets": 2
+  }
+}

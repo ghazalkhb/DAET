@@ -1,0 +1,403 @@
+{
+  "datasets": {
+    "firefox-android": {
+      "dataset": "firefox-android",
+      "tuned_params": {
+        "sma_window": 40,
+        "ewma_alpha": 0.05,
+        "transformer_window": 20,
+        "transformer_dmodel": 16
+      },
+      "val_tuning": {
+        "sma": {
+          "5": 0.0756,
+          "10": 0.0901,
+          "15": 0.0971,
+          "20": 0.1003,
+          "25": 0.0958,
+          "30": 0.0976,
+          "40": 0.102,
+          "50": 0.092
+        },
+        "ewma": {
+          "0.05": 0.0978,
+          "0.1": 0.0947,
+          "0.15": 0.0841,
+          "0.2": 0.0828,
+          "0.25": 0.0793,
+          "0.3": 0.0749,
+          "0.4": 0.0745,
+          "0.5": 0.0709
+        },
+        "transformer": {
+          "(10, 8)": 0.0708,
+          "(10, 16)": 0.0763,
+          "(10, 32)": 0.0721,
+          "(20, 8)": 0.0744,
+          "(20, 16)": 0.0795,
+          "(20, 32)": 0.0738,
+          "(30, 8)": 0.07,
+          "(30, 16)": 0.0782,
+          "(30, 32)": 0.0754
+        }
+      },
+      "methods": {
+        "ARIMA(1,1,1)": {
+          "n_signatures": 342,
+          "n_with_alerts": 136,
+          "mean_precision": 0.056,
+          "std_precision": 0.0,
+          "mean_recall": 0.2573,
+          "std_recall": 0.0,
+          "mean_f1": 0.0893,
+          "std_f1": 0.0,
+          "mean_far": 0.056253,
+          "std_far": 0.0,
+          "mean_storage_reduc": 0.903,
+          "detection_rate_pct": 66.18,
+          "n_seeds": 1,
+          "per_seed": []
+        },
+        "EWMA(a=0.05)": {
+          "n_signatures": 342,
+          "n_with_alerts": 136,
+          "mean_precision": 0.0676,
+          "std_precision": 0.0,
+          "mean_recall": 0.2632,
+          "std_recall": 0.0,
+          "mean_f1": 0.1033,
+          "std_f1": 0.0,
+          "mean_far": 0.052155,
+          "std_far": 0.0,
+          "mean_storage_reduc": 0.8943,
+          "detection_rate_pct": 67.65,
+          "n_seeds": 1,
+          "per_seed": []
+        },
+        "LAST": {
+          "n_signatures": 342,
+          "n_with_alerts": 136,
+          "mean_precision": 0.0455,
+          "std_precision": 0.0,
+          "mean_recall": 0.2091,
+          "std_recall": 0.0,
+          "mean_f1": 0.0718,
+          "std_f1": 0.0,
+          "mean_far": 0.054508,
+          "std_far": 0.0,
+          "mean_storage_reduc": 0.8915,
+          "detection_rate_pct": 54.41,
+          "n_seeds": 1,
+          "per_seed": []
+        },
+        "SMA(w=40)": {
+          "n_signatures": 342,
+          "n_with_alerts": 136,
+          "mean_precision": 0.0661,
+          "std_precision": 0.0,
+          "mean_recall": 0.2895,
+          "std_recall": 0.0,
+          "mean_f1": 0.1039,
+          "std_f1": 0.0,
+          "mean_far": 0.054695,
+          "std_far": 0.0,
+          "mean_storage_reduc": 0.8826,
+          "detection_rate_pct": 72.79,
+          "n_seeds": 1,
+          "per_seed": []
+        },
+        "Transformer(w=20,d=16)": {
+          "n_signatures": 342,
+          "n_with_alerts": 136,
+          "mean_precision": 0.0688,
+          "std_precision": 0.0018,
+          "mean_recall": 0.2924,
+          "std_recall": 0.0024,
+          "mean_f1": 0.1051,
+          "std_f1": 0.002,
+          "mean_far": 0.065694,
+          "std_far": 0.000676,
+          "mean_storage_reduc": 0.6721,
+          "detection_rate_pct": 74.41,
+          "n_seeds": 5,
+          "per_seed": [
+            {
+              "seed": 42,
+              "mean_f1": 0.1044,
+              "mean_precision": 0.0683,
+              "mean_recall": 0.2909
+            },
+            {
+              "seed": 123,
+              "mean_f1": 0.1029,
+              "mean_precision": 0.0669,
+              "mean_recall": 0.2968
+            },
+            {
+              "seed": 456,
+              "mean_f1": 0.1035,
+              "mean_precision": 0.0672,
+              "mean_recall": 0.2895
+            },
+            {
+              "seed": 789,
+              "mean_f1": 0.1064,
+              "mean_precision": 0.0695,
+              "mean_recall": 0.2924
+            },
+            {
+              "seed": 1024,
+              "mean_f1": 0.1083,
+              "mean_precision": 0.0719,
+              "mean_recall": 0.2924
+            }
+          ]
+        }
+      }
+    },
+    "mozilla-beta": {
+      "dataset": "mozilla-beta",
+      "tuned_params": {
+        "sma_window": 20,
+        "ewma_alpha": 0.05,
+        "transformer_window": 10,
+        "transformer_dmodel": 32
+      },
+      "val_tuning": {
+        "sma": {
+          "5": 0.1283,
+          "10": 0.1377,
+          "15": 0.1412,
+          "20": 0.1435,
+          "25": 0.1428,
+          "30": 0.1418,
+          "40": 0.1401,
+          "50": 0.136
+        },
+        "ewma": {
+          "0.05": 0.1453,
+          "0.1": 0.1419,
+          "0.15": 0.1388,
+          "0.2": 0.1343,
+          "0.25": 0.1302,
+          "0.3": 0.128,
+          "0.4": 0.1228,
+          "0.5": 0.12
+        },
+        "transformer": {
+          "(10, 8)": 0.1267,
+          "(10, 16)": 0.1269,
+          "(10, 32)": 0.1295,
+          "(20, 8)": 0.1254,
+          "(20, 16)": 0.124,
+          "(20, 32)": 0.1269,
+          "(30, 8)": 0.1224,
+          "(30, 16)": 0.1191,
+          "(30, 32)": 0.1216
+        }
+      },
+      "methods": {
+        "ARIMA(1,1,1)": {
+          "n_signatures": 1477,
+          "n_with_alerts": 395,
+          "mean_precision": 0.0503,
+          "std_precision": 0.0,
+          "mean_recall": 0.2317,
+          "std_recall": 0.0,
+          "mean_f1": 0.0761,
+          "std_f1": 0.0,
+          "mean_far": 0.060171,
+          "std_far": 0.0,
+          "mean_storage_reduc": 0.9031,
+          "detection_rate_pct": 88.61,
+          "n_seeds": 1,
+          "per_seed": []
+        },
+        "EWMA(a=0.05)": {
+          "n_signatures": 1477,
+          "n_with_alerts": 395,
+          "mean_precision": 0.057,
+          "std_precision": 0.0,
+          "mean_recall": 0.2363,
+          "std_recall": 0.0,
+          "mean_f1": 0.083,
+          "std_f1": 0.0,
+          "mean_far": 0.059159,
+          "std_far": 0.0,
+          "mean_storage_reduc": 0.8847,
+          "detection_rate_pct": 90.63,
+          "n_seeds": 1,
+          "per_seed": []
+        },
+        "LAST": {
+          "n_signatures": 1477,
+          "n_with_alerts": 395,
+          "mean_precision": 0.0454,
+          "std_precision": 0.0,
+          "mean_recall": 0.2115,
+          "std_recall": 0.0,
+          "mean_f1": 0.0685,
+          "std_f1": 0.0,
+          "mean_far": 0.053469,
+          "std_far": 0.0,
+          "mean_storage_reduc": 0.8903,
+          "detection_rate_pct": 81.77,
+          "n_seeds": 1,
+          "per_seed": []
+        },
+        "SMA(w=20)": {
+          "n_signatures": 1477,
+          "n_with_alerts": 395,
+          "mean_precision": 0.0574,
+          "std_precision": 0.0,
+          "mean_recall": 0.2408,
+          "std_recall": 0.0,
+          "mean_f1": 0.0847,
+          "std_f1": 0.0,
+          "mean_far": 0.059089,
+          "std_far": 0.0,
+          "mean_storage_reduc": 0.8884,
+          "detection_rate_pct": 91.65,
+          "n_seeds": 1,
+          "per_seed": []
+        },
+        "Transformer(w=10,d=32)": {
+          "n_signatures": 1477,
+          "n_with_alerts": 395,
+          "mean_precision": 0.0539,
+          "std_precision": 0.001,
+          "mean_recall": 0.2348,
+          "std_recall": 0.0018,
+          "mean_f1": 0.0789,
+          "std_f1": 0.001,
+          "mean_far": 0.064139,
+          "std_far": 0.000124,
+          "mean_storage_reduc": 0.7109,
+          "detection_rate_pct": 89.82,
+          "n_seeds": 5,
+          "per_seed": [
+            {
+              "seed": 42,
+              "mean_f1": 0.0783,
+              "mean_precision": 0.0534,
+              "mean_recall": 0.2343
+            },
+            {
+              "seed": 123,
+              "mean_f1": 0.0775,
+              "mean_precision": 0.0527,
+              "mean_recall": 0.2334
+            },
+            {
+              "seed": 456,
+              "mean_f1": 0.0786,
+              "mean_precision": 0.0535,
+              "mean_recall": 0.2336
+            },
+            {
+              "seed": 789,
+              "mean_f1": 0.0796,
+              "mean_precision": 0.0549,
+              "mean_recall": 0.2343
+            },
+            {
+              "seed": 1024,
+              "mean_f1": 0.0803,
+              "mean_precision": 0.0553,
+              "mean_recall": 0.2383
+            }
+          ]
+        }
+      }
+    }
+  },
+  "cross_dataset_pooled": {
+    "ARIMA(1,1,1)": {
+      "datasets_present": [
+        "firefox-android",
+        "mozilla-beta"
+      ],
+      "pooled_mean_precision": 0.0532,
+      "pooled_mean_recall": 0.2445,
+      "pooled_mean_f1": 0.0827,
+      "pooled_mean_far": 0.058212,
+      "pooled_mean_storage_reduc": 0.903,
+      "pooled_detection_rate_pct": 77.4,
+      "pooled_std_f1": 0.0066
+    },
+    "EWMA(a=0.05)": {
+      "datasets_present": [
+        "firefox-android",
+        "mozilla-beta"
+      ],
+      "pooled_mean_precision": 0.0623,
+      "pooled_mean_recall": 0.2498,
+      "pooled_mean_f1": 0.0932,
+      "pooled_mean_far": 0.055657,
+      "pooled_mean_storage_reduc": 0.8895,
+      "pooled_detection_rate_pct": 79.14,
+      "pooled_std_f1": 0.0101
+    },
+    "LAST": {
+      "datasets_present": [
+        "firefox-android",
+        "mozilla-beta"
+      ],
+      "pooled_mean_precision": 0.0455,
+      "pooled_mean_recall": 0.2103,
+      "pooled_mean_f1": 0.0702,
+      "pooled_mean_far": 0.053988,
+      "pooled_mean_storage_reduc": 0.8909,
+      "pooled_detection_rate_pct": 68.09,
+      "pooled_std_f1": 0.0016
+    },
+    "SMA(w=20)": {
+      "datasets_present": [
+        "mozilla-beta"
+      ],
+      "pooled_mean_precision": 0.0574,
+      "pooled_mean_recall": 0.2408,
+      "pooled_mean_f1": 0.0847,
+      "pooled_mean_far": 0.059089,
+      "pooled_mean_storage_reduc": 0.8884,
+      "pooled_detection_rate_pct": 91.65,
+      "pooled_std_f1": 0.0
+    },
+    "SMA(w=40)": {
+      "datasets_present": [
+        "firefox-android"
+      ],
+      "pooled_mean_precision": 0.0661,
+      "pooled_mean_recall": 0.2895,
+      "pooled_mean_f1": 0.1039,
+      "pooled_mean_far": 0.054695,
+      "pooled_mean_storage_reduc": 0.8826,
+      "pooled_detection_rate_pct": 72.79,
+      "pooled_std_f1": 0.0
+    },
+    "Transformer(w=10,d=32)": {
+      "datasets_present": [
+        "mozilla-beta"
+      ],
+      "pooled_mean_precision": 0.0539,
+      "pooled_mean_recall": 0.2348,
+      "pooled_mean_f1": 0.0789,
+      "pooled_mean_far": 0.064139,
+      "pooled_mean_storage_reduc": 0.7109,
+      "pooled_detection_rate_pct": 89.82,
+      "pooled_std_f1": 0.0
+    },
+    "Transformer(w=20,d=16)": {
+      "datasets_present": [
+        "firefox-android"
+      ],
+      "pooled_mean_precision": 0.0688,
+      "pooled_mean_recall": 0.2924,
+      "pooled_mean_f1": 0.1051,
+      "pooled_mean_far": 0.065694,
+      "pooled_mean_storage_reduc": 0.6721,
+      "pooled_detection_rate_pct": 74.41,
+      "pooled_std_f1": 0.0
+    }
+  }
+}

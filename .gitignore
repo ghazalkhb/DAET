@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+
+# macOS metadata
+__MACOSX/
+.DS_Store
+
+# Large raw time-series data (not distributed in this repository)
+Data/timeseries-data/
+
+# Private/confidential files — not for public repo
+INFSOF-D-26-00614-reviews.pdf
+Reviewer Comments.pdf
+Revised Paper/
+plan.md
+
+# Internal/invalid experiment artefacts
+Experiments/results/_*
+Experiments/results/plots/_*
+Experiments/results/gate_tuning/cache/
+
+# Paper / manuscript files (not part of code release)
+Final Journal/
+IST Journal/
+Journal Paper/
+Previous Paper/
+
+# Old / superseded code versions
+Previous Code/
+
+# Internal planning notes
+plan.md
+
+# Large data / output files (keep CSVs that are tracked results)
+*.zip
+*.7z
+*.tar.gz
+
+# Windows
+Thumbs.db
+desktop.ini
